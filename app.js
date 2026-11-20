@@ -618,7 +618,7 @@ A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').fo
       items.forEach(o=>{const p=PROD(o.p);S.sales.push({id:uid(),t,items:[{p:o.p,s:o.s,n:vname(p,o.s),q:o.q,price:r2(o.rev/o.q),cost:r2(cost(p,o.s))}],pay:'كاشير',total:o.rev,imp:bid});
         // يخصم من المخزون بس إذا اليوم بعد آخر مرة انكتب فيها المخزون
         useOf(p,o.s).forEach(u=>{const i=ING(u.i);if(i&&!(+i.rate>0)&&(!i.stockAt||t>i.stockAt))i.stock=r2(i.stock-u.q*o.q)})});
-      S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay});nd++}
+      S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay,orders:r.items.reduce((a,x)=>a+(S.cmap[x.p]===''||!(x.t>0)?0:x.q),0)});nd++}
     else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),inc:true,t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
   if(lastHist)HSEL=lastHist.id;CR=null;closeM();
   save('✓ '+(nd?nd+' يوم انضاف بتاريخه':'')+(np?(nd?' · ':'')+'تقرير فترة انحفظ':'')+' · '+f2(r2(total))+' ريال'+(created?' · '+created+' صنف جديد':'')+(skipped?' · تخطيت '+skipped+' مكرر':''));if(np&&!nd)go('cashier');else render()};
@@ -820,9 +820,18 @@ function homePeriod(){const [a,b]=pRange(hp,hd);const [pa]=pRange(hp,a-1);const 
    <div class="row" style="margin-top:10px;justify-content:center;gap:10px"><button class="btn ghost sm" data-a="hnav" data-id="-1">→ السابق</button><b style="font-size:16px;min-width:150px;text-align:center">${pLabel(hp,a,b)}</b><button class="btn ghost sm" data-a="hnav" data-id="1" ${b>Date.now()?'disabled style="opacity:.3"':''}>التالي ←</button></div>
    ${isNow?'':`<div style="text-align:center;margin-top:6px"><button class="btn sec sm" data-a="hnow">${{day:'رجوع لليوم',week:'رجوع للأسبوع الحالي',month:'رجوع للشهر الحالي'}[hp]}</button></div>`}</div>
   <div class="card"><div class="row"><h3 style="margin:0">💰 الدخل</h3><span class="sp"></span><button class="btn ghost sm" data-a="imp">📥 ملف الكاشير</button></div>
-   <div style="font-size:30px;font-weight:800;margin-top:6px">${C(st.rev)}</div><div class="mut">${f2(st.cups)} كوب وطلب${pv.rev?' · '+dlt(st.rev,pv.rev)+' عن '+plv:''}</div></div>
-  <div class="card"><h3>🏆 الأكثر مبيعاً</h3>${top.length?`<table><tr><th>الصنف</th><th>العدد</th><th>المبيعات</th></tr>${top.slice(0,4).map(([n,o],k)=>`<tr><td>${['🥇','🥈','🥉','4.'][k]} ${esc(n)}</td><td>${f2(o.q)}</td><td>${C(o.rev)}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مبيعات في هذي الفترة</div>'}</div>
+   <div style="font-size:30px;font-weight:800;margin-top:6px">${C(st.rev)}</div><div class="mut">${pv.rev?dlt(st.rev,pv.rev)+' عن '+plv:''}</div>${payRow(a,b,st)}</div>
+  <div class="card"><h3>🏆 الأكثر مبيعاً</h3>${top.length?`<table><tr><th>الصنف</th><th>العدد</th><th>المبيعات</th></tr>${top.slice(0,4).map(([n,o],k)=>`<tr><td>${['🥇','🥈','🥉','4.'][k]} ${esc(n)}</td><td>${f2(o.q)}</td><td>${C(o.rev)}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مبيعات في هذي الفترة</div>'}${allOrders(a,b,st,by)}</div>
   ${dailyChart(hp,a,b)}`}
+function ordCount(a,b,st){const im=(S.imports||[]).filter(x=>x.day>=a&&x.day<b);const ids=new Set(im.map(x=>x.id));if(im.some(x=>!(x.orders>0)))return 0;return im.reduce((s,x)=>s+(x.orders||0),0)+st.sl.filter(x=>!x.imp||!ids.has(x.imp)).length}
+function payRow(a,b,st){const P={};(S.imports||[]).filter(x=>x.day>=a&&x.day<b).forEach(x=>Object.entries(x.pay||{}).forEach(([k,v])=>{const kk=k==='كاش'?'كاش':'شبكة';P[kk]=(P[kk]||0)+v}));
+  st.sl.filter(x=>!x.imp).forEach(x=>{const kk=/كاش|نقد/.test(x.pay||'')?'كاش':'شبكة';P[kk]=(P[kk]||0)+x.total});const t=(P['كاش']||0)+(P['شبكة']||0);if(!t)return'';
+  const c=P['كاش']||0,n=P['شبكة']||0,pc=Math.round(c/t*100);
+  return `<div class="row" style="margin-top:12px;gap:8px"><div class="kpi" style="flex:1;padding:10px"><div class="l">💵 كاش</div><div class="v" style="font-size:18px">${C(c)}</div><div class="s">${pc}%</div></div><div class="kpi" style="flex:1;padding:10px"><div class="l">💳 شبكة</div><div class="v" style="font-size:18px">${C(n)}</div><div class="s">${100-pc}%</div></div></div>
+   <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:8px"><i style="width:${pc}%;background:var(--pri)"></i><i style="flex:1;background:var(--acc)"></i></div>`}
+function allOrders(a,b,st,by){const E=Object.entries(by).sort((x,y)=>y[1].rev-x[1].rev);if(!E.length)return'';const oc=ordCount(a,b,st);const cups=E.reduce((s,[,o])=>s+o.q,0);
+  return `<details style="margin-top:12px;background:var(--bg);border-radius:10px;padding:10px 12px"><summary style="cursor:pointer;font-weight:800">📋 كل الطلبات: ${oc?f2(oc)+' طلب · ':''}${f2(cups)} كوب · ${E.length} صنف</summary>
+   <table style="margin-top:8px"><tr><th>الصنف</th><th>العدد</th><th>المبيعات</th></tr>${E.map(([n,o])=>`<tr><td>${esc(n)}</td><td>${f2(o.q)}</td><td>${C(o.rev)}</td></tr>`).join('')}</table></details>`}
 function homeNotes(){const N=advise().filter(n=>n.lv==='b').slice(0,3);return N.length?`<div class="card">${N.map(n=>`<div class="alert a-b" style="margin:4px 0">🔴 ${n.t}</div>`).join('')}</div>`:''}
 function dailyChart(kind,a,b){let s0,s1;if(kind==='day'){s1=a+DAY;s0=s1-14*DAY}else{s0=a;s1=b}const ds=[];for(let t=s0;t<s1;t+=DAY){const r=salesSum(inRange(S.sales,t,t+DAY)).rev;ds.push({t,r})}
   const mx=Math.max(1,...ds.map(x=>x.r));const n=ds.length;
