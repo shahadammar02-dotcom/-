@@ -261,7 +261,7 @@ V.needs=()=>{const {n,list}=needList();const tot=list.reduce((s,x)=>s+estOf(x),0
   const row=x=>`<tr><td>${esc(x.i.name)}${x.manual?` <button class="btn ghost sm" style="padding:1px 7px" data-a="needdel" data-id="${x.i.id}">✕</button>`:''}</td><td>${x.st==='b'?'<span class="tag t-b">عاجل</span>':x.st==='w'?'<span class="tag t-w">يخلص اليوم</span>':'<span class="tag t-ok">مضاف</span>'}</td><td><button class="btn sec sm" data-a="qbuy" data-id="${x.i.id}">اشتريت</button></td></tr>`;
   return `<div class="card"><h3>قائمة المقاضي <button class="btn sm" data-a="needadd">+ إضافة</button></h3>
   ${list.length?ICATS.map(c=>{const g=list.filter(x=>(x.i.cat||'أخرى')===c).sort((a,b)=>ord[a.st]-ord[b.st]||b.est-a.est);if(!g.length)return'';const st=g.reduce((a,x)=>a+estOf(x),0);
-    return `<div class="row" style="margin-top:14px"><b style="font-size:15px">${c}</b><span class="sp"></span><button class="btn ghost sm" data-a="copycat" data-id="${c}">📋 نسخ للمورد</button></div><table>${g.map(row).join('')}</table>`}).join('')+`
+    return `<div class="row" style="margin-top:14px"><b style="font-size:15px">${c}</b></div><table>${g.map(row).join('')}</table>`}).join('')+`
   <button class="btn full sec" style="margin-top:12px" data-a="copylist">📋 نسخ القائمة كاملة (للواتساب)</button>`:'<div class="empty">✅ المخزون يكفي — ما تحتاج تشتري شي الحين</div>'}
   </div>`};
 
