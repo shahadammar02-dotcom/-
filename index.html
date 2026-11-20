@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نظام نكهة الطبيبين</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="نكهة الطبيبين"><meta name="theme-color" content="#1f8a5b">
+<link rel="apple-touch-icon" href="logo.jpg"><link rel="icon" href="logo.jpg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<style id="css">
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2621;--mut:#6b7570;--line:#e4e7e2;--pri:#1f8a5b;--pri2:#e8f5ee;--warn:#d9822b;--warn2:#fdf1e4;--bad:#c94040;--bad2:#fbeaea;--acc:#f2b705}
+@media (prefers-color-scheme:dark){:root{--bg:#121614;--card:#1b211e;--ink:#e8ece9;--mut:#9aa39e;--line:#2b332f;--pri:#3cb47c;--pri2:#1d3328;--warn2:#35291b;--bad2:#3a2222}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,system-ui,sans-serif;font-size:15px;line-height:1.5}
+header{background:var(--pri);color:#fff;padding:14px 16px 10px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:19px;font-weight:800}header .sub{font-size:12px;opacity:.85;display:flex;justify-content:space-between}
+nav{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:58px;z-index:4;scrollbar-width:none}
+nav button{flex:0 0 auto;border:0;background:transparent;color:var(--mut);padding:7px 12px;border-radius:20px;font:inherit;font-weight:700;cursor:pointer}
+nav button.on{background:var(--pri2);color:var(--pri)}
+main{max-width:900px;margin:0 auto;padding:12px 12px 90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}@media(min-width:640px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}.kpi .l{color:var(--mut);font-size:12px}.kpi .v{font-size:20px;font-weight:800}.kpi .s{font-size:12px;color:var(--mut)}
+.pos{color:var(--pri)}.neg{color:var(--bad)}.wr{color:var(--warn)}
+.btn{border:0;background:var(--pri);color:#fff;font:inherit;font-weight:700;padding:9px 14px;border-radius:10px;cursor:pointer}
+.btn.sec{background:var(--pri2);color:var(--pri)}.btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}.btn.red{background:var(--bad2);color:var(--bad)}.btn.sm{padding:5px 10px;font-size:13px}.btn.full{width:100%;padding:13px;font-size:16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+table{width:100%;border-collapse:collapse;font-size:14px}th{color:var(--mut);font-weight:500;font-size:12px;text-align:right;padding:6px 4px;border-bottom:1px solid var(--line)}td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700}.t-ok{background:var(--pri2);color:var(--pri)}.t-w{background:var(--warn2);color:var(--warn)}.t-b{background:var(--bad2);color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}@media(min-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
+.pbtn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px 8px;font:inherit;cursor:pointer;text-align:center;position:relative}
+.pbtn b{display:block;font-size:15px}.pbtn span{color:var(--mut);font-size:13px}.pbtn .q{position:absolute;top:-6px;left:-6px;background:var(--acc);color:#000;border-radius:20px;min-width:24px;height:24px;font-weight:800;font-size:13px;line-height:24px}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pri)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:140px;padding-top:10px}.chart div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:10px;color:var(--mut)}.chart div i{display:block;width:100%;background:var(--pri);border-radius:4px 4px 0 0;min-height:2px}
+.alert{padding:10px 12px;border-radius:10px;margin-bottom:8px;font-size:14px}.a-b{background:var(--bad2)}.a-w{background:var(--warn2)}.a-ok{background:var(--pri2)}
+.mut{color:var(--mut);font-size:13px}.empty{color:var(--mut);text-align:center;padding:18px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}#modal.on{display:flex}
+#modal .box{background:var(--card);width:100%;max-width:560px;max-height:90vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px}@media(min-width:640px){#modal{align-items:center}#modal .box{border-radius:18px}}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:20px;font-size:14px;z-index:30;opacity:0;transition:.3s;pointer-events:none}.toast.on{opacity:1}
+.tip{border-right:4px solid var(--acc);padding:8px 10px;background:var(--bg);border-radius:8px;margin-bottom:8px;font-size:14px}
+
+.lg{max-width:380px;margin:40px auto;padding:0 16px}.lg .card{padding:20px}.lg h2{margin:0 0 4px;font-size:20px}.lg img{width:90px;height:90px;border-radius:50%;display:block;margin:0 auto 10px;object-fit:cover;background:#fff}.lg .msg{margin-top:10px}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head><body><div id="root"><div class="empty" style="padding:60px">جاري التحميل…</div></div>
+<script id="state" type="application/json">null</script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+if(!window.supabase){$('#root').innerHTML='<div class="lg"><div class="card"><div class="alert a-b">ما قدرت أتصل. تأكد من الإنترنت وحدّث الصفحة.</div></div></div>';return}
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+const toEmail=u=>{u=String(u||'').trim().toLowerCase();return u.includes('@')?u:u.replace(/[^a-z0-9._-]/g,'')+'@'+DOMAIN};
+const CLOUD=window.CLOUD={role:'owner',status:'',uid:null,userName:'',remoteAt:null,saving:false,again:false,
+  staffUrl:location.href.split('#')[0].replace(/[^/]*$/,'')+'staff.html',
+  setStatus(t){this.status=t;const e=document.getElementById('cloudst');if(e)e.textContent=t},
+  async save(S){if(this.saving){this.again=true;return}this.saving=true;this.setStatus('⏳ جاري الحفظ');
+    try{const now=new Date().toISOString();let q;
+      if(this.remoteAt)q=await sb.from('app_state').update({data:S,updated_at:now}).eq('id',1).eq('updated_at',this.remoteAt).select('updated_at');
+      else q=await sb.from('app_state').insert({id:1,data:S,updated_at:now}).select('updated_at');
+      if(q.error)throw q.error;
+      if(!q.data||!q.data.length){try{localStorage.removeItem('juice_sys_v1')}catch(e){}window.APP&&APP.toast('انحفظت تعديلات من جهاز ثاني، بحدّث الصفحة');setTimeout(()=>location.reload(),1500);return}
+      this.remoteAt=q.data[0].updated_at;this.setStatus('✓ محفوظ');this.syncMats(S)}
+    catch(e){console.log(e);this.setStatus('⚠️ ما انحفظ — بعيد المحاولة');setTimeout(()=>window.APP&&this.save(APP.getS()),10000)}
+    finally{this.saving=false;if(this.again){this.again=false;window.APP&&this.save(APP.getS())}}},
+  async syncMats(S){try{const rows=S.ings.map((i,k)=>({name:i.name,unit:i.unit||'',pack:i.pack||'',cat:i.cat||'أخرى',ord:k}));const sig=JSON.stringify(rows);if(localStorage.getItem('mats_sig')===sig)return;
+    const d=await sb.from('materials').delete().neq('name','__none__');if(d.error)throw d.error;const ins=await sb.from('materials').insert(rows);if(ins.error)throw ins.error;localStorage.setItem('mats_sig',sig)}catch(e){console.log('mats',e)}},
+  async sendAction(d){const r=await sb.from('inbox').insert({kind:'diff',payload:d,staff:this.userName});if(r.error)throw r.error},
+  async uploadImg(f){const blob=await new Promise((ok,no)=>{const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):no(new Error('img')),'image/jpeg',.75)};im.onerror=no;im.src=rd.result};rd.onerror=no;rd.readAsDataURL(f)});
+    const path=this.uid+'/'+new Date().toISOString().slice(0,10)+'-'+Math.random().toString(36).slice(2,10)+'.jpg';const up=await sb.storage.from('invoices').upload(path,blob,{contentType:'image/jpeg'});if(up.error)throw up.error;return path},
+  async pullInbox(){if(!window.APP)return;try{const r=await sb.from('inbox').select('*').eq('processed',false).order('id').limit(500);if(r.error||!r.data.length)return;
+    if(this.role==='staff'){r.data.forEach(x=>{if(x.kind==='diff')APP.applyDiff(x.payload);else APP.mergeInbox([x])});APP.render();return}
+    const diffs=r.data.filter(x=>x.kind==='diff');r.data=r.data.filter(x=>x.kind!=='diff');let dn=0;
+    const S=APP.getS();S.inboxIds=S.inboxIds||[];const seen=new Set(S.inboxIds);const rows=r.data.filter(x=>!seen.has(x.id));const ids=r.data.map(x=>x.id);
+    rows.forEach(x=>S.inboxIds.push(x.id));if(S.inboxIds.length>3000)S.inboxIds=S.inboxIds.slice(-3000);
+    diffs.forEach(x=>{if(!seen.has(x.id)){S.inboxIds.push(x.id);dn+=APP.applyDiff(x.payload)}});diffs.forEach(x=>ids.push(x.id));const res=APP.mergeInbox(rows);if(dn&&!res.n)APP.commit();await sb.from('inbox').update({processed:true}).in('id',ids);if(dn)APP.toast('📥 وصلت إضافات من الموظفين ('+dn+')');
+    if(res.n)APP.toast('📥 وصلت '+res.n+' مشتريات من الموظفين')}catch(e){console.log('inbox',e)}},
+  async listStaff(){const r=await sb.from('profiles').select('user_id,name,role,created_at').order('created_at');if(r.error)throw r.error;return r.data},
+  async addStaff(u,n,p){const tmp=supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'tmp-signup'}});
+    const r=await tmp.auth.signUp({email:toEmail(u),password:p,options:{data:{name:n}}});if(r.error)throw r.error;const id=r.data&&r.data.user&&r.data.user.id;if(!id)throw new Error('ما انضاف');
+    await this.setRole(id,'staff')},
+  async setRole(id,role){const r=await sb.from('profiles').update({role}).eq('user_id',id).select('user_id');if(r.error)throw r.error;if(!r.data.length)throw new Error('ما لقيت الحساب (يمكن الاسم مستخدم)')},
+  async openImg(path){const w=window.open('','_blank');const r=await sb.storage.from('invoices').createSignedUrl(path,3600);if(r.error||!r.data){if(w)w.close();window.APP&&APP.toast('ما قدرت أفتح الصورة');return}if(w)w.location=r.data.signedUrl;else location.href=r.data.signedUrl},
+  async logout(){await sb.auth.signOut();try{localStorage.removeItem('juice_sys_v1')}catch(e){}location.reload()}};
+
+function loginView(ownerExists,msg){
+  $('#root').innerHTML=`<div class="lg"><img src="logo.jpg" onerror="this.style.display='none'"><div class="card"><h2>نظام نكهة الطبيبين</h2>
+   ${ownerExists?`<p class="mut">سجّل دخولك</p><label>اسم الدخول</label><input id="lu" dir="ltr" autocapitalize="off" autocomplete="username"><label>الرقم السري</label><input id="lp" type="password" dir="ltr" autocomplete="current-password"><button class="btn full" style="margin-top:14px" id="lgo">دخول</button>`
+   :`<p class="mut">أول مرة؟ سوِّ حساب المالك (حسابك أنت).</p><label>اسم الدخول (بالإنجليزي)</label><input id="ou" dir="ltr" autocapitalize="off" placeholder="owner"><label>اسمك</label><input id="on"><label>الرقم السري (6 خانات أو أكثر)</label><input id="op" type="password" dir="ltr"><button class="btn full" style="margin-top:14px" id="ogo">إنشاء حساب المالك</button>`}
+   <div class="msg">${msg?`<div class="alert a-b">${esc(msg)}</div>`:''}</div></div></div>`;
+  const go=$('#lgo'),og=$('#ogo');
+  if(go)go.onclick=async()=>{go.disabled=true;const r=await sb.auth.signInWithPassword({email:toEmail($('#lu').value),password:$('#lp').value});if(r.error){go.disabled=false;$('.msg').innerHTML='<div class="alert a-b">اسم الدخول أو الرقم السري غلط</div>';return}boot()};
+  if(og)og.onclick=async()=>{const u=$('#ou').value,n=$('#on').value||u,p=$('#op').value;if(!u||p.length<6){$('.msg').innerHTML='<div class="alert a-b">اكتب اسم الدخول، والرقم السري 6 خانات أو أكثر</div>';return}
+    og.disabled=true;const r=await sb.auth.signUp({email:toEmail(u),password:p,options:{data:{name:n}}});if(r.error){og.disabled=false;$('.msg').innerHTML='<div class="alert a-b">'+esc(r.error.message)+'</div>';return}
+    if(!r.data.session){$('.msg').innerHTML='<div class="alert a-w">انسوى الحساب، بس لازم توقف «Confirm email» في Supabase وبعدين تدخل.</div>';og.disabled=false;return}boot()};
+  document.querySelectorAll('.lg input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')(go||og).click()}));
+}
+async function boot(){
+  try{const {data:{session}}=await sb.auth.getSession();
+  if(!session){const oe=await sb.rpc('owner_exists');return loginView(oe.error?true:!!oe.data)}
+  const uid=session.user.id;const pr=await sb.from('profiles').select('name,role').eq('user_id',uid).maybeSingle();
+  const role=pr.data&&pr.data.role;
+  if(role==='staff')CLOUD.role='staff';
+  if(role!=='owner'&&role!=='staff'){$('#root').innerHTML='<div class="lg"><div class="card"><div class="alert a-w">حسابك ما عنده صلاحية على هذي الصفحة.</div><button class="btn full" onclick="CLOUD.logout()">تسجيل خروج</button></div></div>';return}
+  CLOUD.uid=uid;CLOUD.userName=pr.data.name;
+  const st=await sb.from('app_state').select('data,updated_at').eq('id',1).maybeSingle();if(st.error)throw st.error;
+  if(st.data){CLOUD.remoteAt=st.data.updated_at;document.getElementById('state').textContent=JSON.stringify(st.data.data).replace(/</g,'\\u003c')}
+  CLOUD.status='✓ محفوظ';
+  if(role==='staff'&&!st.data){$('#root').innerHTML='<div class="lg"><div class="card"><div class="alert a-w">النظام لسه ما تجهّز من المالك.</div><button class="btn full" onclick="CLOUD.logout()">تسجيل خروج</button></div></div>';return}
+  const sc=document.createElement('script');sc.src='app.js?v=2';sc.onload=()=>{if(role==='staff'){CLOUD.status='👁️ وضع الموظف';CLOUD.pullInbox();let t0=Date.now();window.addEventListener('focus',()=>{if(Date.now()-t0>60000)location.reload()});return}if(!st.data&&window.APP)CLOUD.save(APP.getS());else if(window.APP)CLOUD.syncMats(APP.getS());CLOUD.pullInbox();setInterval(()=>CLOUD.pullInbox(),120000);window.addEventListener('focus',()=>CLOUD.pullInbox())};document.body.appendChild(sc);
+  }catch(e){console.log(e);$('#root').innerHTML='<div class="lg"><div class="card"><div class="alert a-b">صار خطأ في الاتصال: '+esc(e.message||e)+'</div><button class="btn full" onclick="location.reload()">حاول مرة ثانية</button></div></div>'}
+}
+boot();
+})();
+</script></body></html>
