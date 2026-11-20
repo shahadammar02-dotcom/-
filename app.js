@@ -501,7 +501,7 @@ const COLS=[['name','اسم الصنف',/(اسم|صنف|منتج|ماده|item|p
 function loadXLSX(){return new Promise((ok,no)=>{if(window.XLSX)return ok();const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=no;document.head.appendChild(sc)})}
 A.imp=()=>{openM(`<h3>📥 استيراد تقرير الكاشير</h3><p class="mut">اختر ملف <b>PDF</b> من الكاشير (أو Excel/CSV). تقدر تختار <b>كذا ملف مرة وحدة</b>، وكل يوم ينحط في تاريخه.</p><input type="file" id="impf" accept=".pdf,.xlsx,.xls,.csv,.txt" multiple><div id="impb" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
   $('#impf').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;$('#impb').innerHTML='<div class="empty">جاري القراءة…</div>';
-    if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{await crFiles([...e.target.files].filter(x=>/\.pdf$/i.test(x.name)||x.type==='application/pdf'))}catch(err){console.log(err);$('#impb').innerHTML='<div class="alert a-b">'+(err&&err.message==='notcr'?'ما لقيت جدول «حسب كميات الأصناف» في الملف. أرسل الملف لـ Claude يضبطه.':'تعذّر قراءة ملف PDF. تأكد من النت وحاول مرة ثانية.')+'</div>'}return}
+    if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{await crFiles([...e.target.files].filter(x=>/\.pdf$/i.test(x.name)||x.type==='application/pdf'))}catch(err){console.log(err);$('#impb').innerHTML='<div class="alert a-b">'+(err&&err.message==='notcr'?'هذا الملف ما فيه المنتجات وكمياتها (جدول «حسب كميات الأصناف»). طلّع التقرير الكامل من الكاشير.':'تعذّر قراءة ملف PDF. تأكد من النت وحاول مرة ثانية.')+'</div>'}return}
     try{await loadXLSX();const buf=await f.arrayBuffer();let wb;if(/\.(csv|txt)$/i.test(f.name)){let txt;try{txt=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(_){try{txt=new TextDecoder('windows-1256').decode(buf)}catch(__){txt=new TextDecoder().decode(buf)}}wb=XLSX.read(txt.replace(/^\uFEFF/,''),{type:'string',cellDates:true,raw:false})}else wb=XLSX.read(buf,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).filter(r=>r.some(c=>String(c).trim()!==''));
       let h=rows.findIndex(r=>r.filter(c=>typeof c==='string'&&c.trim()&&!/^[\d\s.,٠-٩]+$/.test(c)).length>=2);if(h<0)h=0;
       IMP={file:f.name,head:rows[h].map(c=>String(c).trim()),rows:rows.slice(h+1),map:{}};
@@ -572,7 +572,7 @@ function crSize(p,lab,unit,prices){const k=mnorm(lab);if(CRSZ[k])return CRSZ[k];
 let CR=null;
 const FRUITS=['كيوي','عنب','جوافه','خوخ','كمثري','بطيخ','تين','رمان','برتقال','مانجو','ليمون','جزر','تفاح','اناناس','فراوله','موز','شمام','حبحب'];
 const crDays=r=>Math.max(1,Math.round(((r.to||r.from+DAY)-r.from)/DAY));
-function crUI(){const F=CR.files;const names={};let tot=0;F.forEach(f=>{f.days=crDays(f.r);f.daily=f.days<=1;f.r.items.forEach(x=>{if(S.cmap&&S.cmap[x.p]==='')return;const o=names[x.p]=names[x.p]||{q:0,t:0};o.t+=x.t;o.q+=(x.mod.length?x.mod.reduce((a,m)=>a+m[1],0):1)*x.q;tot+=x.t})});CR.names=names;
+function crUI(){const F=CR.files;const nod=F.filter(f=>!f.r.from);if(nod.length){const d=CR.dset||dk(sod(Date.now())-DAY);nod.forEach(f=>{f.r.from=new Date(d+'T00:00').getTime();f.r.to=f.r.from+DAY;f.nod=true})}const names={};let tot=0;F.forEach(f=>{f.days=crDays(f.r);f.daily=f.days<=1;f.r.items.forEach(x=>{if(S.cmap&&S.cmap[x.p]==='')return;const o=names[x.p]=names[x.p]||{q:0,t:0};o.t+=x.t;o.q+=(x.mod.length?x.mod.reduce((a,m)=>a+m[1],0):1)*x.q;tot+=x.t})});CR.names=names;
   const daily=F.filter(f=>f.daily),per=F.filter(f=>!f.daily);
   const dups=F.filter(f=>f.daily?(S.imports||[]).some(b=>b.day===f.r.from):(S.hist||[]).some(h=>h.from===f.r.from&&h.to===f.r.to));
   const po=sel=>`<option value="new" ${sel==='new'?'selected':''}>➕ صنف جديد</option><option value="" ${sel===''?'selected':''}>— تجاهل —</option>`+(S.cats||[]).map(c=>`<optgroup label="${esc(c)}">${S.prods.filter(p=>p.cat===c).map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('');
@@ -584,7 +584,8 @@ function crUI(){const F=CR.files;const names={};let tot=0;F.forEach(f=>{f.days=c
    ${per.length?'<p class="mut">تقرير الفترة ما فيه تاريخ كل فاتورة، فما يقدر يتوزع على الأيام. عشان كل يوم ينحط في تاريخه ارفع تقارير يومية.</p>':''}
    ${nw.length?`<p class="mut">${nw.length} صنف ما لقيته (${nw.map(esc).join('، ')}): بينضاف كصنف جديد بأسعار الكاشير، أو اختر الصنف المقابل.</p>`:''}
    ${nw.length||F.length===1?`<table><tr><th>في الكاشير</th><th>كوب</th><th>في النظام</th></tr>${Object.entries(names).sort((a,b)=>(crMatch(a[0])==='new'?0:1)-(crMatch(b[0])==='new'?0:1)||b[1].t-a[1].t).map(([n,o])=>`<tr><td>${esc(n)}<div class="mut">${C(o.t)}</div></td><td>${f2(o.q)}</td><td><select class="crp" data-n="${esc(n)}">${po(crMatch(n))}</select></td></tr>`).join('')}</table>`:'<p class="mut">✓ كل الأصناف معروفة.</p>'}
-   <button class="btn full" data-a="crgo">✓ استيراد</button>`}
+   ${F.some(f=>f.nod)?`<label>📅 الملف ما فيه تاريخ — اختر يوم المبيعات</label><input type="date" id="crd" value="${dk(F.find(f=>f.nod).r.from)}">`:''}
+   <button class="btn full" data-a="crgo">✓ استيراد</button>`;const cd=$('#crd');if(cd)cd.onchange=()=>{CR.dset=cd.value;CR.files.filter(f=>f.nod).forEach(f=>{f.r.from=0});crUI()}}
 async function crFiles(fs){await loadPDF();const files=[];for(const f of fs){const r=parseCR(await pdfLines(await f.arrayBuffer()));if(r)files.push({file:f.name,r})}if(!files.length)throw new Error('notcr');files.sort((a,b)=>a.r.from-b.r.from);CR={files};crUI()}
 A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').forEach(s=>S.cmap[s.dataset.n]=s.value);
   const all=CR.files.flatMap(f=>f.r.items);
@@ -624,9 +625,7 @@ V.cashier=()=>{const H=(S.hist||[]).slice().sort((a,b)=>b.from-a.from);
   <div class="card"><h3>📊 تقرير الكاشير <span class="mut" style="font-size:13px">${dk(h.from)} إلى ${dk(h.to-1)} · ${days} يوم</span></h3>
   <div class="kpis"><div class="kpi"><div class="l">المبيعات</div><div class="v">${C(h.total)}</div></div><div class="kpi"><div class="l">متوسط اليوم</div><div class="v">${C(h.total/days)}</div></div><div class="kpi"><div class="l">أكواب/يوم</div><div class="v">${f2(Math.round(cups/days))}</div></div><div class="kpi"><div class="l">متوسط سعر الكوب</div><div class="v">${C(h.total/Math.max(1,cups))}</div></div></div>
   ${miss>h.total*0.05?`<div class="alert a-w">الربح ما يطلع دقيق للحين: ${C(miss)} من المبيعات أصنافها ناقص أسعار مواد. سجّل مشترياتك بأسعارها ويتحسب لحاله.</div>`:`<div class="kpis"><div class="kpi"><div class="l">تكلفة المواد</div><div class="v">${C(cg)}</div></div><div class="kpi"><div class="l">ربح المواد</div><div class="v pos">${C(h.total-cg)}</div></div></div>`}</div>
-  ${Object.keys(h.pay||{}).length?`<div class="card"><h3>طريقة الدفع</h3>${bars(h.pay,C)}</div>`:''}
-  <div class="card"><h3>حسب النوع</h3>${bars(byC,C)}</div>
-  <div class="card"><h3>حسب المقاس (عدد الأكواب)</h3>${bars(byS,v=>f2(Math.round(v)))}</div>
+  <div class="card"><h3>حسب النوع (من المنيو)</h3>${bars(byC,C)}</div>
   <div class="card"><h3>الأصناف</h3><table><tr><th>الصنف</th><th>كوب</th><th>المبيعات</th></tr>${P.map(([n,b])=>`<tr><td>${esc(n)}<div style="background:var(--pri);opacity:.7;height:5px;border-radius:3px;width:${b.rev/mx*100}%;margin-top:3px"></div></td><td>${f2(Math.round(b.q))}</td><td>${C(b.rev)}${b.nc?'':`<div class="mut">ربح ${C(b.pr)}</div>`}</td></tr>`).join('')}</table>
   ${ISSTAFF?'':`<button class="btn ghost sm red" style="margin-top:12px" data-a="delhist" data-id="${h.id}">🗑️ حذف هذا التقرير</button>`}</div>`};
 A.hsel=id=>{HSEL=id;render()};
