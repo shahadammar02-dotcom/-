@@ -211,13 +211,14 @@ function tips(){const out=[];const from=sod(Date.now())-13*DAY;const by={};inRan
 const hl=h=>(h%12||12)+(h<12?' ص':' م');
 const sugPrice=c=>Math.ceil(c/(S.settings.target/100)*2)/2;
 
-let scat=null,sedit=false;
+let scat=null,sedit=false,pcat='الكل';
 const allCats=()=>{const c=(S.cats||[]).filter(c=>S.prods.some(p=>p.cat===c));S.prods.forEach(p=>{if(!c.includes(p.cat))c.push(p.cat)});return c};
 V.sell=()=>{const items=Object.entries(cart).filter(([,q])=>q>0);const kp=k=>{const [pid,sid]=k.split('|');return{p:PROD(pid),sid}};const tot=items.reduce((s,[k,q])=>{const {p,sid}=kp(k);return s+(p?+p.prices[sid]:0)*q},0);const today=inRange(S.sales,sod(Date.now())).slice().reverse();
   const cats=allCats();if(!scat||!cats.includes(scat))scat=cats[0];
   const imps=(S.imports||[]).slice().reverse().slice(0,5);
-  const SH={N:'ميني',S:'ص',M:'و',L:'ك',B:'ق',X:'ق.ك',C:'كوب',P:'طبق',U:''};
-  const prodsCard=`<div class="card"><h3>المنتجات <span class="mut">${S.prods.length} صنف</span></h3>${allCats().map(c=>{const ps=S.prods.filter(p=>p.cat===c&&sizesOf(p).length);return ps.length?`<div style="margin:12px 0 6px;font-weight:800">${esc(c)} <span class="mut">(${ps.length})</span></div><div class="grid">${ps.map(p=>`<div class="pbtn" style="cursor:default;padding:10px 6px"><b>${esc(p.name)}</b><span style="display:block;margin-top:4px;line-height:1.7">${sizesOf(p).map(z=>`${esc(SH[z.id]!==undefined?SH[z.id]:z.name)} <b style="display:inline;font-size:13px;color:var(--ink)">${f2(p.prices[z.id])}</b>`).join(' · ')}</span></div>`).join('')}</div>`:''}).join('')}</div>`;
+  const pcats=allCats().filter(c=>S.prods.some(p=>p.cat===c&&sizesOf(p).length));if(pcat!=='الكل'&&!pcats.includes(pcat))pcat='الكل';
+  const pshow=S.prods.filter(p=>sizesOf(p).length&&(pcat==='الكل'||p.cat===pcat));
+  const prodsCard=`<div class="card"><h3>المنتجات <span class="mut">${pshow.length} صنف</span></h3><div class="row" style="overflow-x:auto;flex-wrap:nowrap;margin-bottom:10px;padding-bottom:4px">${['الكل',...pcats].map(c=>`<button class="btn sm ${c===pcat?'':'ghost'}" style="flex:0 0 auto" data-a="pcat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div><div class="grid">${pshow.map(p=>`<button class="pbtn" data-a="pinfo" data-id="${p.id}"><b>${esc(p.name)}</b></button>`).join('')}</div></div>`;
   return `${prodsCard}<div class="card"><h3>مبيعات اليوم <span><span class="mut">${today.length} طلب · ${C(today.reduce((a,x)=>a+x.total,0))}</span> <button class="btn sm" data-a="salesin">📥 إضافة</button></span></h3>${today.length?`<table><tr><th>الوقت</th><th>الأصناف</th><th>الدفع</th><th>المبلغ</th><th></th></tr>${today.slice(0,40).map(s=>`<tr><td class="mut">${new Date(s.t).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'})}</td><td>${s.items.map(i=>esc(i.n)+(i.q>1?' ×'+i.q:'')).join('، ')}</td><td class="mut">${s.pay}</td><td>${f2(s.total)}</td><td><button class="btn ghost sm" data-a="delsale" data-id="${s.id}">✕</button></td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مبيعات اليوم</div>'}</div>`};
 
 const inPack=i=>i&&i.buyIn==='pack'&&+i.packSize>0;
@@ -634,6 +635,8 @@ A.saveneedadd=()=>{const n=val('na_n');if(!n)return toast('اكتب الاسم')
   S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);S.extraList.push({i:i.id,q,t:Date.now(),price:p?r2(p*cnt):0});closeM();save('✓ انضاف للقائمة');render()};
 A.needdel=id=>{S.extraList=(S.extraList||[]).filter(e=>e.i!==id);save();render()};
 A.refresh=async()=>{toast('🔄 جاري التحديث…');try{clearTimeout(pubT);if(dirty&&window.CLOUD&&!ISSTAFF){dirty=false;await CLOUD.save(S)}for(let k=0;k<40&&window.CLOUD&&CLOUD.saving;k++)await new Promise(r=>setTimeout(r,150))}catch(e){}try{saveUI()}catch(e){}location.reload()};
+A.pcat=c=>{pcat=c;render()};
+A.pinfo=id=>{const p=PROD(id);if(!p)return;openM(`<h3>${esc(p.name)}</h3><div class="mut" style="margin-top:-6px">${esc(p.cat)}</div><table style="margin-top:10px">${sizesOf(p).map(z=>`<tr><td style="font-size:16px">${esc(z.name)}${z.ml?` <span class="mut">${z.ml} مل</span>`:''}</td><td style="font-size:18px;font-weight:800;text-align:left">${f2(p.prices[z.id])} <span class="mut" style="font-weight:400">${esc(S.settings.cur)}</span></td></tr>`).join('')}</table><div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn" data-a="close">تمام</button></div>`)};
 A.more=()=>{showAll=!showAll;render()};
 A.salesin=()=>openM(`<h3>📥 مبيعات اليوم</h3><p class="mut">اختر الطريقة الأسهل لك:</p><div class="grid" style="grid-template-columns:1fr 1fr"><button class="pbtn" style="padding:18px 8px" data-a="imp"><div style="font-size:28px">📄</div><b>ملف من الكاشير</b><span>Excel أو CSV</span></button><button class="pbtn" style="padding:18px 8px" data-a="daily"><div style="font-size:28px">✍️</div><b>أكتب الأعداد</b><span>من التقرير الورقي</span></button></div>${(S.imports||[]).length?`<div style="margin-top:14px;font-weight:800">آخر ما سجلته</div><table>${(S.imports||[]).slice().reverse().slice(0,5).map(b=>`<tr><td class="mut">${dk(b.t).slice(5)}</td><td>${esc(b.file)}</td><td>${f2(b.total)}</td><td><button class="btn ghost sm" data-a="undoimp" data-id="${b.id}">تراجع</button></td></tr>`).join('')}</table>`:''}<div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
 A.yfr=id=>{yf=id;ymode=null;yn=1;render()};
