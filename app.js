@@ -499,9 +499,9 @@ function toDate(v,fb){if(v instanceof Date&&!isNaN(v))return v.getTime();if(type
 let IMP=null;
 const COLS=[['name','اسم الصنف',/(اسم|صنف|منتج|ماده|item|product|name|description|وصف)/],['qty','الكمية',/(كميه|عدد|qty|quantity|count|units|sold)/],['total','الإجمالي (اختياري)',/(اجمالي|مبلغ|صافي|قيمه|المبيعات|total|amount|net|sales|gross|price|سعر)/],['date','التاريخ/الوقت (اختياري)',/(تاريخ|وقت|date|time|created)/],['inv','رقم الفاتورة (اختياري)',/(فاتوره|طلب|ايصال|invoice|order|receipt|ref|bill|#)/],['pay','طريقة الدفع (اختياري)',/(دفع|payment|method|tender|نقد|شبكه)/]];
 function loadXLSX(){return new Promise((ok,no)=>{if(window.XLSX)return ok();const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=no;document.head.appendChild(sc)})}
-A.imp=()=>{openM(`<h3>📥 استيراد تقرير الكاشير</h3><p class="mut">من نظام الكاشير صدّر <b>تقرير مبيعات الأصناف</b> أو <b>تفاصيل الفواتير</b> كملف Excel أو CSV، وبعدين اختره هنا.</p><input type="file" id="impf" accept=".pdf,.xlsx,.xls,.csv,.txt"><div id="impb" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
+A.imp=()=>{openM(`<h3>📥 استيراد تقرير الكاشير</h3><p class="mut">اختر ملف <b>PDF</b> من الكاشير (أو Excel/CSV). تقدر تختار <b>كذا ملف مرة وحدة</b>، وكل يوم ينحط في تاريخه.</p><input type="file" id="impf" accept=".pdf,.xlsx,.xls,.csv,.txt" multiple><div id="impb" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
   $('#impf').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;$('#impb').innerHTML='<div class="empty">جاري القراءة…</div>';
-    if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{await crFile(f)}catch(err){console.log(err);$('#impb').innerHTML='<div class="alert a-b">'+(err&&err.message==='notcr'?'ما لقيت جدول «حسب كميات الأصناف» في الملف. أرسل الملف لـ Claude يضبطه.':'تعذّر قراءة ملف PDF. تأكد من النت وحاول مرة ثانية.')+'</div>'}return}
+    if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{await crFiles([...e.target.files].filter(x=>/\.pdf$/i.test(x.name)||x.type==='application/pdf'))}catch(err){console.log(err);$('#impb').innerHTML='<div class="alert a-b">'+(err&&err.message==='notcr'?'ما لقيت جدول «حسب كميات الأصناف» في الملف. أرسل الملف لـ Claude يضبطه.':'تعذّر قراءة ملف PDF. تأكد من النت وحاول مرة ثانية.')+'</div>'}return}
     try{await loadXLSX();const buf=await f.arrayBuffer();let wb;if(/\.(csv|txt)$/i.test(f.name)){let txt;try{txt=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(_){try{txt=new TextDecoder('windows-1256').decode(buf)}catch(__){txt=new TextDecoder().decode(buf)}}wb=XLSX.read(txt.replace(/^\uFEFF/,''),{type:'string',cellDates:true,raw:false})}else wb=XLSX.read(buf,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).filter(r=>r.some(c=>String(c).trim()!==''));
       let h=rows.findIndex(r=>r.filter(c=>typeof c==='string'&&c.trim()&&!/^[\d\s.,٠-٩]+$/.test(c)).length>=2);if(h<0)h=0;
       IMP={file:f.name,head:rows[h].map(c=>String(c).trim()),rows:rows.slice(h+1),map:{}};
@@ -570,39 +570,48 @@ function crSize(p,lab,unit,prices){const k=mnorm(lab);if(CRSZ[k])return CRSZ[k];
   let cand=CRPL[k]?CRPL[k].filter(s=>own.includes(s)):own;if(!cand.length)cand=CRPL[k]?[CRPL[k][0]]:own.length?own:['U'];
   if(cand.length===1||!(unit>0))return cand[0];return cand.slice().sort((a,b)=>Math.abs((+pr[a]||0)-unit)-Math.abs((+pr[b]||0)-unit))[0]}
 let CR=null;
-function crUI(){const r=CR.r;const days=Math.max(1,Math.round(((r.to||r.from+DAY)-r.from)/DAY));CR.days=days;CR.daily=days<=1;
-  const tot=r.items.reduce((a,x)=>a+x.t,0);const names={};r.items.forEach(x=>{const o=names[x.p]=names[x.p]||{q:0,t:0};o.t+=x.t;o.q+=(x.mod.length?x.mod.reduce((a,m)=>a+m[1],0):1)*x.q});CR.names=names;
-  const dup=CR.daily?(S.imports||[]).find(b=>b.day===r.from):(S.hist||[]).find(h=>h.from===r.from&&h.to===r.to);
-  const po=sel=>`<option value="new" ${sel==='new'?'selected':''}>➕ صنف جديد</option><option value="" ${sel===''?'selected':''}>— تجاهل —</option>`+(S.cats||[]).map(c=>`<optgroup label="${esc(c)}">${S.prods.filter(p=>p.cat===c).map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('');
-  const nw=Object.keys(names).filter(n=>crMatch(n)==='new').length;
-  $('#impb').innerHTML=`<div class="tip">📄 تقرير الكاشير ${r.from?'من <b>'+dk(r.from)+'</b>':''}${!CR.daily&&r.to?' إلى <b>'+dk(r.to-1)+'</b> ('+days+' يوم)':''} · المجموع <b>${C(tot)}</b></div>
-   ${dup?`<div class="alert a-w">⚠️ هذا التقرير ${CR.daily?'لنفس اليوم':'لنفس الفترة'} انضاف قبل. لو كملت ${CR.daily?'بتتكرر المبيعات':'بيستبدل القديم'}.</div>`:''}
-   ${CR.daily?'<p class="mut">مبيعات يوم واحد: تنضاف للمبيعات وتنخصم موادها من المخزون.</p>':'<p class="mut">تقرير فترة: ينحفظ في <b>📊 تقارير الكاشير</b> عشان تشوف الأرقام، وما ينخصم من المخزون الحالي.</p>'}
-   ${nw?`<p class="mut">${nw} صنف ما لقيته في النظام، بينضاف كصنف جديد بأسعار الكاشير. لو هو نفس صنف موجود بس اسمه مختلف، اختره من القائمة.</p>`:''}
-   <table><tr><th>في الكاشير</th><th>كوب</th><th>في النظام</th></tr>${Object.entries(names).sort((a,b)=>b[1].t-a[1].t).map(([n,o])=>`<tr><td>${esc(n)}<div class="mut">${C(o.t)}</div></td><td>${f2(o.q)}</td><td><select class="crp" data-n="${esc(n)}">${po(crMatch(n))}</select></td></tr>`).join('')}</table>
-   <p class="mut">الربط ينحفظ، والمرة الجاية يتعرف عليها لحاله.</p><button class="btn full" data-a="crgo">✓ ${CR.daily?'استيراد مبيعات اليوم':'حفظ التقرير'}</button>`}
-async function crFile(f){await loadPDF();const lines=await pdfLines(await f.arrayBuffer());const r=parseCR(lines);if(!r)throw new Error('notcr');CR={file:f.name,r};crUI()}
 const FRUITS=['كيوي','عنب','جوافه','خوخ','كمثري','بطيخ','تين','رمان','برتقال','مانجو','ليمون','جزر','تفاح','اناناس','فراوله','موز','شمام','حبحب'];
-A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').forEach(s=>S.cmap[s.dataset.n]=s.value);const r=CR.r;
-  // أسعار ملاحظة من الكاشير لكل صنف/مقاس
-  const obs={};r.items.forEach(x=>{if(x.mod.length===1&&x.t>0){const u=x.t/(x.q*x.mod[0][1]);const o=obs[x.p]=obs[x.p]||{};(o[x.mod[0][0]]=o[x.mod[0][0]]||[]).push(u)}});
+const crDays=r=>Math.max(1,Math.round(((r.to||r.from+DAY)-r.from)/DAY));
+function crUI(){const F=CR.files;const names={};let tot=0;F.forEach(f=>{f.days=crDays(f.r);f.daily=f.days<=1;f.r.items.forEach(x=>{if(S.cmap&&S.cmap[x.p]==='')return;const o=names[x.p]=names[x.p]||{q:0,t:0};o.t+=x.t;o.q+=(x.mod.length?x.mod.reduce((a,m)=>a+m[1],0):1)*x.q;tot+=x.t})});CR.names=names;
+  const daily=F.filter(f=>f.daily),per=F.filter(f=>!f.daily);
+  const dups=F.filter(f=>f.daily?(S.imports||[]).some(b=>b.day===f.r.from):(S.hist||[]).some(h=>h.from===f.r.from&&h.to===f.r.to));
+  const po=sel=>`<option value="new" ${sel==='new'?'selected':''}>➕ صنف جديد</option><option value="" ${sel===''?'selected':''}>— تجاهل —</option>`+(S.cats||[]).map(c=>`<optgroup label="${esc(c)}">${S.prods.filter(p=>p.cat===c).map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('');
+  const nw=Object.keys(names).filter(n=>crMatch(n)==='new');const ds=daily.map(f=>f.r.from).sort((a,b)=>a-b);
+  $('#impb').innerHTML=`<div class="tip">📄 ${F.length>1?F.length+' ملفات · ':''}المجموع <b>${C(tot)}</b>
+   ${daily.length?`<br>📅 ${daily.length} يوم${daily.length>1?' (من '+dk(ds[0])+' إلى '+dk(ds[ds.length-1])+')':': <b>'+dk(ds[0])+'</b>'} — كل يوم ينحط في تاريخه`:''}
+   ${per.map(f=>`<br>🗂️ فترة ${dk(f.r.from)} إلى ${dk(f.r.to-1)} (${f.days} يوم) — تنحفظ في 📊 تقارير الكاشير`).join('')}</div>
+   ${dups.length?`<div class="alert a-w">⚠️ ${dups.length} من الملفات انضافت قبل (${dups.map(f=>dk(f.r.from)).join('، ')}). بتتخطى عشان ما تتكرر.</div>`:''}
+   ${per.length?'<p class="mut">تقرير الفترة ما فيه تاريخ كل فاتورة، فما يقدر يتوزع على الأيام. عشان كل يوم ينحط في تاريخه ارفع تقارير يومية.</p>':''}
+   ${nw.length?`<p class="mut">${nw.length} صنف ما لقيته (${nw.map(esc).join('، ')}): بينضاف كصنف جديد بأسعار الكاشير، أو اختر الصنف المقابل.</p>`:''}
+   ${nw.length||F.length===1?`<table><tr><th>في الكاشير</th><th>كوب</th><th>في النظام</th></tr>${Object.entries(names).sort((a,b)=>(crMatch(a[0])==='new'?0:1)-(crMatch(b[0])==='new'?0:1)||b[1].t-a[1].t).map(([n,o])=>`<tr><td>${esc(n)}<div class="mut">${C(o.t)}</div></td><td>${f2(o.q)}</td><td><select class="crp" data-n="${esc(n)}">${po(crMatch(n))}</select></td></tr>`).join('')}</table>`:'<p class="mut">✓ كل الأصناف معروفة.</p>'}
+   <button class="btn full" data-a="crgo">✓ استيراد</button>`}
+async function crFiles(fs){await loadPDF();const files=[];for(const f of fs){const r=parseCR(await pdfLines(await f.arrayBuffer()));if(r)files.push({file:f.name,r})}if(!files.length)throw new Error('notcr');files.sort((a,b)=>a.r.from-b.r.from);CR={files};crUI()}
+A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').forEach(s=>S.cmap[s.dataset.n]=s.value);
+  const all=CR.files.flatMap(f=>f.r.items);
+  const obs={};all.forEach(x=>{if(x.mod.length===1&&x.t>0){const u=x.t/(x.q*x.mod[0][1]);const o=obs[x.p]=obs[x.p]||{};(o[x.mod[0][0]]=o[x.mod[0][0]]||[]).push(u)}});
   const mode=a=>{const c={};a.forEach(v=>{const k=r2(v);c[k]=(c[k]||0)+1});return +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]};
-  let created=0;Object.keys(CR.names).forEach(n=>{if(S.cmap[n]!=='new')return;const pr={};Object.entries(obs[n]||{}).forEach(([lab,a])=>{const sid=crSize({prices:{}},lab,0,{});if(!pr[sid])pr[sid]=mode(a)});
-    if(!Object.keys(pr).length){const x=r.items.find(x=>x.p===n&&x.t>0);if(x)pr.U=r2(x.t/x.q)}
+  let created=0;Object.keys(CR.names).forEach(n=>{if(crMatch(n)!=='new')return;const pr={};Object.entries(obs[n]||{}).forEach(([lab,a])=>{const sid=crSize({prices:{}},lab,0,{});if(!pr[sid])pr[sid]=mode(a)});
+    if(!Object.keys(pr).length){const x=all.find(x=>x.p===n&&x.t>0);if(x)pr.U=r2(x.t/x.q)}
     const cat=FRUITS.includes(mnorm(n))?'عصيرات':'خلطات';S.cats=S.cats||[];if(!S.cats.includes(cat))S.cats.push(cat);
     const p={id:uid(),name:n,cat,prices:pr,recipe:[],est:false,cpl:null,lit:false};S.prods.push(p);S.cmap[n]=p.id;created++});
-  const agg={};let total=0,cnt=0,skip=0;
-  r.items.forEach(x=>{const p=PROD(S.cmap[x.p]);if(!p||!(x.t>0)){skip++;return}
-    const mods=x.mod.length?x.mod:[['',1]];const unit1=x.t/(x.q*mods.reduce((a,m)=>a+m[1],0));
-    const parts=mods.map(([lab,c])=>{const ob=obs[x.p]&&obs[x.p][lab]?mode(obs[x.p][lab]):0;const sid=crSize(p,lab,mods.length===1?unit1:ob);const w=(+p.prices[sid]||ob||unit1)*c;return{sid,c,w,ob}});
-    const W=parts.reduce((a,b)=>a+b.w,0)||1;
-    parts.forEach(pt=>{if(!(+p.prices[pt.sid]>0)){p.prices[pt.sid]=pt.ob||r2(x.t*pt.w/W/(x.q*pt.c))}const k=p.id+'|'+pt.sid;const o=agg[k]=agg[k]||{p:p.id,s:pt.sid,q:0,rev:0};o.q+=x.q*pt.c;o.rev+=x.t*pt.w/W});total+=x.t;cnt++});
-  const items=Object.values(agg).map(o=>({...o,q:r2(o.q),rev:r2(o.rev)}));
-  if(CR.daily){const bid=uid();const t=(r.from||sod(Date.now()))+20*3600e3;
-    items.forEach(o=>{const p=PROD(o.p);S.sales.push({id:uid(),t,items:[{p:o.p,s:o.s,n:vname(p,o.s),q:o.q,price:r2(o.rev/o.q),cost:r2(cost(p,o.s))}],pay:'كاشير',total:o.rev,imp:bid});deduct(o.p,o.s,o.q,1)});
-    S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:CR.file,lines:r.items.length,total:r2(total),day:r.from,pay:r.pay})}
-  else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));S.hist.push({id:uid(),t:Date.now(),file:CR.file,from:r.from,to:r.to,days:CR.days,total:r2(total),pay:r.pay,items});HSEL=S.hist[S.hist.length-1].id}
-  const daily=CR.daily;CR=null;closeM();save('✓ '+(daily?'انضافت مبيعات اليوم':'انحفظ التقرير')+' · '+f2(total)+' ريال'+(created?' · '+created+' صنف جديد':'')+(skip?' · تجاهل '+skip:''));if(!daily)go('cashier');else render()};
+  let total=0,nd=0,np=0,skipped=0;let lastHist=null;
+  CR.files.forEach(f=>{const r=f.r;
+    if(f.daily?(S.imports||[]).some(b=>b.day===r.from):false){skipped++;return}
+    const agg={};let ft=0;
+    r.items.forEach(x=>{const p=PROD(S.cmap[x.p]);if(!p||!(x.t>0))return;
+      const mods=x.mod.length?x.mod:[['',1]];const unit1=x.t/(x.q*mods.reduce((a,m)=>a+m[1],0));
+      const parts=mods.map(([lab,c])=>{const ob=obs[x.p]&&obs[x.p][lab]?mode(obs[x.p][lab]):0;const sid=crSize(p,lab,mods.length===1?unit1:ob);const w=(+p.prices[sid]||ob||unit1)*c;return{sid,c,w,ob}});
+      const W=parts.reduce((a,b)=>a+b.w,0)||1;
+      parts.forEach(pt=>{if(!(+p.prices[pt.sid]>0))p.prices[pt.sid]=pt.ob||r2(x.t*pt.w/W/(x.q*pt.c));const k=p.id+'|'+pt.sid;const o=agg[k]=agg[k]||{p:p.id,s:pt.sid,q:0,rev:0};o.q+=x.q*pt.c;o.rev+=x.t*pt.w/W});ft+=x.t});
+    const items=Object.values(agg).map(o=>({...o,q:r2(o.q),rev:r2(o.rev)}));total+=ft;
+    if(f.daily){const bid=uid();const t=(r.from||sod(Date.now()))+20*3600e3;
+      items.forEach(o=>{const p=PROD(o.p);S.sales.push({id:uid(),t,items:[{p:o.p,s:o.s,n:vname(p,o.s),q:o.q,price:r2(o.rev/o.q),cost:r2(cost(p,o.s))}],pay:'كاشير',total:o.rev,imp:bid});
+        // يخصم من المخزون بس إذا اليوم بعد آخر مرة انكتب فيها المخزون
+        useOf(p,o.s).forEach(u=>{const i=ING(u.i);if(i&&!(+i.rate>0)&&(!i.stockAt||t>i.stockAt))i.stock=r2(i.stock-u.q*o.q)})});
+      S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay});nd++}
+    else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
+  if(lastHist)HSEL=lastHist.id;CR=null;closeM();
+  save('✓ '+(nd?nd+' يوم انضاف بتاريخه':'')+(np?(nd?' · ':'')+'تقرير فترة انحفظ':'')+' · '+f2(r2(total))+' ريال'+(created?' · '+created+' صنف جديد':'')+(skipped?' · تخطيت '+skipped+' مكرر':''));if(np&&!nd)go('cashier');else render()};
 let HSEL=null;
 V.cashier=()=>{const H=(S.hist||[]).slice().sort((a,b)=>b.from-a.from);
   if(!H.length)return`<div class="card"><h3>📊 تقارير الكاشير</h3><div class="empty">ما فيه تقارير فترات للحين.<br>من <b>📥 مبيعات اليوم ← ملف من الكاشير</b> اختر ملف PDF لتقرير الكاشير.</div></div>`;
