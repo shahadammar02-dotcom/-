@@ -178,7 +178,7 @@ function month(){const ms=mStart();const s=salesSum(inRange(S.sales,ms));const p
   const dayN=new Date().getDate();const fixedSoFar=fixedTotal()*dayN/dim();return{...s,pur,wst,exp,fixedSoFar,net:s.rev-s.cogs-wst-fixedSoFar,dayN}}
 
 /* ---------- الواجهة ---------- */
-const TABS=[['home','الرئيسية'],['sell','المنتجات'],['needs','الاحتياج'],['stock','المخزون والمشتريات'],['turnover','معدل الشراء'],['items','الأصناف والتسعير'],['yield','حاسبة العصير'],['budget','المصاريف'],['prefs','الإعدادات']];
+const TABS=[['home','الرئيسية'],['sell','المنتجات'],['needs','الاحتياج'],['stock','المخزون والمشتريات'],['turnover','معدل الشراء'],['items','الأصناف والتسعير'],['yield','حاسبة العصير'],['budget','المصاريف'],['cashier','📊 تقارير الكاشير'],['prefs','الإعدادات']];
 let tab=(location.hash||'').slice(1);if(!TABS.find(t=>t[0]===tab))tab='home';
 let cart={},pay='شبكة';
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(TABS.find(t=>t[0]===h)&&h!==tab){tab=h;render()}});
@@ -489,8 +489,9 @@ function toDate(v,fb){if(v instanceof Date&&!isNaN(v))return v.getTime();if(type
 let IMP=null;
 const COLS=[['name','اسم الصنف',/(اسم|صنف|منتج|ماده|item|product|name|description|وصف)/],['qty','الكمية',/(كميه|عدد|qty|quantity|count|units|sold)/],['total','الإجمالي (اختياري)',/(اجمالي|مبلغ|صافي|قيمه|المبيعات|total|amount|net|sales|gross|price|سعر)/],['date','التاريخ/الوقت (اختياري)',/(تاريخ|وقت|date|time|created)/],['inv','رقم الفاتورة (اختياري)',/(فاتوره|طلب|ايصال|invoice|order|receipt|ref|bill|#)/],['pay','طريقة الدفع (اختياري)',/(دفع|payment|method|tender|نقد|شبكه)/]];
 function loadXLSX(){return new Promise((ok,no)=>{if(window.XLSX)return ok();const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=no;document.head.appendChild(sc)})}
-A.imp=()=>{openM(`<h3>📥 استيراد تقرير الكاشير</h3><p class="mut">من نظام الكاشير صدّر <b>تقرير مبيعات الأصناف</b> أو <b>تفاصيل الفواتير</b> كملف Excel أو CSV، وبعدين اختره هنا.</p><input type="file" id="impf" accept=".xlsx,.xls,.csv,.txt"><div id="impb" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
+A.imp=()=>{openM(`<h3>📥 استيراد تقرير الكاشير</h3><p class="mut">من نظام الكاشير صدّر <b>تقرير مبيعات الأصناف</b> أو <b>تفاصيل الفواتير</b> كملف Excel أو CSV، وبعدين اختره هنا.</p><input type="file" id="impf" accept=".pdf,.xlsx,.xls,.csv,.txt"><div id="impb" style="margin-top:12px"></div><div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);
   $('#impf').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;$('#impb').innerHTML='<div class="empty">جاري القراءة…</div>';
+    if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{await crFile(f)}catch(err){console.log(err);$('#impb').innerHTML='<div class="alert a-b">'+(err&&err.message==='notcr'?'ما لقيت جدول «حسب كميات الأصناف» في الملف. أرسل الملف لـ Claude يضبطه.':'تعذّر قراءة ملف PDF. تأكد من النت وحاول مرة ثانية.')+'</div>'}return}
     try{await loadXLSX();const buf=await f.arrayBuffer();let wb;if(/\.(csv|txt)$/i.test(f.name)){let txt;try{txt=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(_){try{txt=new TextDecoder('windows-1256').decode(buf)}catch(__){txt=new TextDecoder().decode(buf)}}wb=XLSX.read(txt.replace(/^\uFEFF/,''),{type:'string',cellDates:true,raw:false})}else wb=XLSX.read(buf,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).filter(r=>r.some(c=>String(c).trim()!==''));
       let h=rows.findIndex(r=>r.filter(c=>typeof c==='string'&&c.trim()&&!/^[\d\s.,٠-٩]+$/.test(c)).length>=2);if(h<0)h=0;
       IMP={file:f.name,head:rows[h].map(c=>String(c).trim()),rows:rows.slice(h+1),map:{}};
@@ -524,6 +525,94 @@ A.impgo=()=>{const keys=Object.keys(IMP.names);S.posmap=S.posmap||{};document.qu
   Object.values(groups).forEach(s=>{s.total=r2(s.total);S.sales.push(s)});
   S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:IMP.file,lines:IMP.lines.length,total:r2(total)});IMP=null;closeM();
   save('✓ تم استيراد '+cnt+' سطر بقيمة '+f2(total)+(skipped?(' · تجاهل '+skipped):''));render()};
+/* ---------- تقرير الكاشير PDF ---------- */
+const PDFJ='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+function loadPDF(){return new Promise((ok,no)=>{if(window.pdfjsLib)return ok();const sc=document.createElement('script');sc.src=PDFJ+'pdf.min.js';sc.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJ+'pdf.worker.min.js';ok()};sc.onerror=no;document.head.appendChild(sc)})}
+async function pdfLines(buf){const doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;const out=[];
+  for(let n=1;n<=doc.numPages;n++){const pg=await doc.getPage(n);const tc=await pg.getTextContent();const L=[];
+    tc.items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const y=it.transform[5],x=it.transform[4];let l=L.find(l=>Math.abs(l.y-y)<2.5);if(!l){l={y,c:[]};L.push(l)}l.c.push({x,s})});
+    L.sort((a,b)=>b.y-a.y).forEach(l=>{l.c.sort((a,b)=>a.x-b.x);out.push(l.c.map(c=>c.s))})}return out}
+const isN=s=>/^-?[\d,٠-٩٬]+([.٫][\d٠-٩]+)?$/.test(AD(s).trim());
+function parseCR(lines){const r={from:0,to:0,items:[],pay:{}};let mode='';let cur=null;
+  const dt=l=>{const c=l.find(c=>/\d{1,2}\/\d{1,2}\/\d{4}/.test(AD(c)));return c?toDate(c,0):0};
+  lines.forEach((l,k)=>{const j=l.join(' ');const nj=norm(j);
+    if(!r.from&&/(^|\s)من\s*:/.test(j)&&dt(l))r.from=dt(l);
+    if(!r.to&&/(الي|الى|إلى)\s*:/.test(j)&&dt(l))r.to=dt(l);
+    const nx=()=>{for(let m=k+1;m<Math.min(lines.length,k+3);m++){const v=lines[m].find(isN);if(v)return toNum(v)}return 0};
+    if(mode!=='items'){if(/cash|نقد/i.test(j))r.pay['كاش']=(r.pay['كاش']||0)+nx();else if(/credit|شبكه|شبكة/i.test(j))r.pay['شبكة']=(r.pay['شبكة']||0)+nx();else if(/debit|فيزا|مدى|مدي/i.test(j))r.pay['مدى']=(r.pay['مدى']||0)+nx()}
+    if(nj.includes('حسب كميات')){mode='items';return}
+    if(mode!=='items')return;
+    if(/رسوم|اجمالي|الاجمالي/.test(nj)&&!l.some(c=>c.startsWith('('))){if(r.items.length)mode='done';return}
+    const md=l.find(c=>/^\(/.test(c.trim()));
+    if(md&&cur&&!l.some(isN)){const t=md.replace(/[()]/g,' ').replace(/\s+/g,' ').trim();const m=AD(t).match(/^(.*?)\s*(\d+)$/);if(m)cur.mod.push([m[1].trim(),+m[2]]);else cur.mod.push([t,1]);return}
+    const nums=l.filter(isN),txt=l.filter(c=>!isN(c)&&!/^[%\s]+$/.test(c));
+    if(nums.length>=2&&txt.length){cur={p:txt.join(' ').trim(),q:toNum(nums[0]),t:toNum(nums[nums.length-1]),mod:[]};r.items.push(cur);
+      const m2=txt.slice(1).find(c=>/^\(/.test(c));if(m2){}}});
+  return r.items.length?r:null}
+const mnorm=t=>norm(t).replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ء/g,'');
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+function crMatch(n){S.cmap=S.cmap||{};if(S.cmap[n]!==undefined&&(S.cmap[n]===''||S.cmap[n]==='new'||PROD(S.cmap[n])))return S.cmap[n];const k=mnorm(n);
+  let p=S.prods.find(p=>mnorm(p.name)===k);if(p)return p.id;
+  let best=null,bd=9;S.prods.forEach(p=>{const q=mnorm(p.name);if(q.length<3||k.length<3)return;const d=lev(k,q);const lim=Math.min(k.length,q.length)>=6?2:1;if(d<=lim&&d<bd){bd=d;best=p}});return best?best.id:'new'}
+const CRSZ={'كاسه صغير':'S','كاسه وسط':'M','كاسه كبير':'L','جالون صغير':'B','جالون كبير':'X','قاروره صغير':'B','قاروره كبير':'X','قاروره':'B','ميني':'N'};
+const CRPL={'صغير':['S','C','N'],'وسط':['M'],'كبير':['L','P','X']};
+function crSize(p,lab,unit,prices){const k=mnorm(lab);if(CRSZ[k])return CRSZ[k];const pr=prices||p.prices||{};const own=Object.keys(pr).filter(s=>+pr[s]>0);
+  let cand=CRPL[k]?CRPL[k].filter(s=>own.includes(s)):own;if(!cand.length)cand=CRPL[k]?[CRPL[k][0]]:own.length?own:['U'];
+  if(cand.length===1||!(unit>0))return cand[0];return cand.slice().sort((a,b)=>Math.abs((+pr[a]||0)-unit)-Math.abs((+pr[b]||0)-unit))[0]}
+let CR=null;
+function crUI(){const r=CR.r;const days=Math.max(1,Math.round(((r.to||r.from+DAY)-r.from)/DAY));CR.days=days;CR.daily=days<=1;
+  const tot=r.items.reduce((a,x)=>a+x.t,0);const names={};r.items.forEach(x=>{const o=names[x.p]=names[x.p]||{q:0,t:0};o.t+=x.t;o.q+=(x.mod.length?x.mod.reduce((a,m)=>a+m[1],0):1)*x.q});CR.names=names;
+  const dup=CR.daily?(S.imports||[]).find(b=>b.day===r.from):(S.hist||[]).find(h=>h.from===r.from&&h.to===r.to);
+  const po=sel=>`<option value="new" ${sel==='new'?'selected':''}>➕ صنف جديد</option><option value="" ${sel===''?'selected':''}>— تجاهل —</option>`+(S.cats||[]).map(c=>`<optgroup label="${esc(c)}">${S.prods.filter(p=>p.cat===c).map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('');
+  const nw=Object.keys(names).filter(n=>crMatch(n)==='new').length;
+  $('#impb').innerHTML=`<div class="tip">📄 تقرير الكاشير ${r.from?'من <b>'+dk(r.from)+'</b>':''}${!CR.daily&&r.to?' إلى <b>'+dk(r.to-1)+'</b> ('+days+' يوم)':''} · المجموع <b>${C(tot)}</b></div>
+   ${dup?`<div class="alert a-w">⚠️ هذا التقرير ${CR.daily?'لنفس اليوم':'لنفس الفترة'} انضاف قبل. لو كملت ${CR.daily?'بتتكرر المبيعات':'بيستبدل القديم'}.</div>`:''}
+   ${CR.daily?'<p class="mut">مبيعات يوم واحد: تنضاف للمبيعات وتنخصم موادها من المخزون.</p>':'<p class="mut">تقرير فترة: ينحفظ في <b>📊 تقارير الكاشير</b> عشان تشوف الأرقام، وما ينخصم من المخزون الحالي.</p>'}
+   ${nw?`<p class="mut">${nw} صنف ما لقيته في النظام، بينضاف كصنف جديد بأسعار الكاشير. لو هو نفس صنف موجود بس اسمه مختلف، اختره من القائمة.</p>`:''}
+   <table><tr><th>في الكاشير</th><th>كوب</th><th>في النظام</th></tr>${Object.entries(names).sort((a,b)=>b[1].t-a[1].t).map(([n,o])=>`<tr><td>${esc(n)}<div class="mut">${C(o.t)}</div></td><td>${f2(o.q)}</td><td><select class="crp" data-n="${esc(n)}">${po(crMatch(n))}</select></td></tr>`).join('')}</table>
+   <p class="mut">الربط ينحفظ، والمرة الجاية يتعرف عليها لحاله.</p><button class="btn full" data-a="crgo">✓ ${CR.daily?'استيراد مبيعات اليوم':'حفظ التقرير'}</button>`}
+async function crFile(f){await loadPDF();const lines=await pdfLines(await f.arrayBuffer());const r=parseCR(lines);if(!r)throw new Error('notcr');CR={file:f.name,r};crUI()}
+const FRUITS=['كيوي','عنب','جوافه','خوخ','كمثري','بطيخ','تين','رمان','برتقال','مانجو','ليمون','جزر','تفاح','اناناس','فراوله','موز','شمام','حبحب'];
+A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').forEach(s=>S.cmap[s.dataset.n]=s.value);const r=CR.r;
+  // أسعار ملاحظة من الكاشير لكل صنف/مقاس
+  const obs={};r.items.forEach(x=>{if(x.mod.length===1&&x.t>0){const u=x.t/(x.q*x.mod[0][1]);const o=obs[x.p]=obs[x.p]||{};(o[x.mod[0][0]]=o[x.mod[0][0]]||[]).push(u)}});
+  const mode=a=>{const c={};a.forEach(v=>{const k=r2(v);c[k]=(c[k]||0)+1});return +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]};
+  let created=0;Object.keys(CR.names).forEach(n=>{if(S.cmap[n]!=='new')return;const pr={};Object.entries(obs[n]||{}).forEach(([lab,a])=>{const sid=crSize({prices:{}},lab,0,{});if(!pr[sid])pr[sid]=mode(a)});
+    if(!Object.keys(pr).length){const x=r.items.find(x=>x.p===n&&x.t>0);if(x)pr.U=r2(x.t/x.q)}
+    const cat=FRUITS.includes(mnorm(n))?'عصيرات':'خلطات';S.cats=S.cats||[];if(!S.cats.includes(cat))S.cats.push(cat);
+    const p={id:uid(),name:n,cat,prices:pr,recipe:[],est:false,cpl:null,lit:false};S.prods.push(p);S.cmap[n]=p.id;created++});
+  const agg={};let total=0,cnt=0,skip=0;
+  r.items.forEach(x=>{const p=PROD(S.cmap[x.p]);if(!p||!(x.t>0)){skip++;return}
+    const mods=x.mod.length?x.mod:[['',1]];const unit1=x.t/(x.q*mods.reduce((a,m)=>a+m[1],0));
+    const parts=mods.map(([lab,c])=>{const ob=obs[x.p]&&obs[x.p][lab]?mode(obs[x.p][lab]):0;const sid=crSize(p,lab,mods.length===1?unit1:ob);const w=(+p.prices[sid]||ob||unit1)*c;return{sid,c,w,ob}});
+    const W=parts.reduce((a,b)=>a+b.w,0)||1;
+    parts.forEach(pt=>{if(!(+p.prices[pt.sid]>0)){p.prices[pt.sid]=pt.ob||r2(x.t*pt.w/W/(x.q*pt.c))}const k=p.id+'|'+pt.sid;const o=agg[k]=agg[k]||{p:p.id,s:pt.sid,q:0,rev:0};o.q+=x.q*pt.c;o.rev+=x.t*pt.w/W});total+=x.t;cnt++});
+  const items=Object.values(agg).map(o=>({...o,q:r2(o.q),rev:r2(o.rev)}));
+  if(CR.daily){const bid=uid();const t=(r.from||sod(Date.now()))+20*3600e3;
+    items.forEach(o=>{const p=PROD(o.p);S.sales.push({id:uid(),t,items:[{p:o.p,s:o.s,n:vname(p,o.s),q:o.q,price:r2(o.rev/o.q),cost:r2(cost(p,o.s))}],pay:'كاشير',total:o.rev,imp:bid});deduct(o.p,o.s,o.q,1)});
+    S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:CR.file,lines:r.items.length,total:r2(total),day:r.from,pay:r.pay})}
+  else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));S.hist.push({id:uid(),t:Date.now(),file:CR.file,from:r.from,to:r.to,days:CR.days,total:r2(total),pay:r.pay,items});HSEL=S.hist[S.hist.length-1].id}
+  const daily=CR.daily;CR=null;closeM();save('✓ '+(daily?'انضافت مبيعات اليوم':'انحفظ التقرير')+' · '+f2(total)+' ريال'+(created?' · '+created+' صنف جديد':'')+(skip?' · تجاهل '+skip:''));if(!daily)go('cashier');else render()};
+let HSEL=null;
+V.cashier=()=>{const H=(S.hist||[]).slice().sort((a,b)=>b.from-a.from);
+  if(!H.length)return`<div class="card"><h3>📊 تقارير الكاشير</h3><div class="empty">ما فيه تقارير فترات للحين.<br>من <b>📥 مبيعات اليوم ← ملف من الكاشير</b> اختر ملف PDF لتقرير الكاشير.</div></div>`;
+  const h=H.find(x=>x.id===HSEL)||H[0];const days=h.days||1;let cups=0,cg=0,miss=0;const byP={},byC={},byS={};
+  h.items.forEach(o=>{const p=PROD(o.p);cups+=o.q;const nm=p?p.name:'؟';const b=byP[nm]=byP[nm]||{q:0,rev:0,pr:0,nc:false};b.q+=o.q;b.rev+=o.rev;const c=p?cost(p,o.s):0;const nc=!p||!hasRec(p)||noCost(p,o.s);if(nc){b.nc=true;miss+=o.rev}else{b.pr+=o.rev-c*o.q;cg+=c*o.q}
+    const ct=p&&p.cat||'أخرى';byC[ct]=(byC[ct]||0)+o.rev;const z=(SZ(o.s)||{}).name||o.s;byS[z]=(byS[z]||0)+o.q});
+  const P=Object.entries(byP).sort((a,b)=>b[1].rev-a[1].rev);const mx=Math.max(1,...P.map(x=>x[1].rev));const pt=Object.values(h.pay||{}).reduce((a,b)=>a+b,0)||1;
+  const bars=(o,fmt)=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]);const m=Math.max(1,...e.map(x=>x[1]));const t=e.reduce((a,b)=>a+b[1],0)||1;return `<table>${e.map(([k,v])=>`<tr><td>${esc(k)}</td><td style="width:45%"><div style="background:var(--pri);opacity:.8;height:8px;border-radius:4px;width:${v/m*100}%"></div></td><td>${fmt(v)} <span class="mut">${Math.round(v/t*100)}%</span></td></tr>`).join('')}</table>`};
+  return `${H.length>1?`<div class="row" style="overflow-x:auto;flex-wrap:nowrap;margin-bottom:8px">${H.map(x=>`<button class="btn sm ${x.id===h.id?'':'ghost'}" style="flex:0 0 auto" data-a="hsel" data-id="${x.id}">${dk(x.from).slice(5)} ← ${dk(x.to-1).slice(5)}</button>`).join('')}</div>`:''}
+  <div class="card"><h3>📊 تقرير الكاشير <span class="mut" style="font-size:13px">${dk(h.from)} إلى ${dk(h.to-1)} · ${days} يوم</span></h3>
+  <div class="kpis"><div class="kpi"><div class="l">المبيعات</div><div class="v">${C(h.total)}</div></div><div class="kpi"><div class="l">متوسط اليوم</div><div class="v">${C(h.total/days)}</div></div><div class="kpi"><div class="l">أكواب/يوم</div><div class="v">${f2(Math.round(cups/days))}</div></div><div class="kpi"><div class="l">متوسط سعر الكوب</div><div class="v">${C(h.total/Math.max(1,cups))}</div></div></div>
+  ${miss>h.total*0.05?`<div class="alert a-w">الربح ما يطلع دقيق للحين: ${C(miss)} من المبيعات أصنافها ناقص أسعار مواد. سجّل مشترياتك بأسعارها ويتحسب لحاله.</div>`:`<div class="kpis"><div class="kpi"><div class="l">تكلفة المواد</div><div class="v">${C(cg)}</div></div><div class="kpi"><div class="l">ربح المواد</div><div class="v pos">${C(h.total-cg)}</div></div></div>`}</div>
+  ${Object.keys(h.pay||{}).length?`<div class="card"><h3>طريقة الدفع</h3>${bars(h.pay,C)}</div>`:''}
+  <div class="card"><h3>حسب النوع</h3>${bars(byC,C)}</div>
+  <div class="card"><h3>حسب المقاس (عدد الأكواب)</h3>${bars(byS,v=>f2(Math.round(v)))}</div>
+  <div class="card"><h3>الأصناف</h3><table><tr><th>الصنف</th><th>كوب</th><th>المبيعات</th></tr>${P.map(([n,b])=>`<tr><td>${esc(n)}<div style="background:var(--pri);opacity:.7;height:5px;border-radius:3px;width:${b.rev/mx*100}%;margin-top:3px"></div></td><td>${f2(Math.round(b.q))}</td><td>${C(b.rev)}${b.nc?'':`<div class="mut">ربح ${C(b.pr)}</div>`}</td></tr>`).join('')}</table>
+  ${ISSTAFF?'':`<button class="btn ghost sm red" style="margin-top:12px" data-a="delhist" data-id="${h.id}">🗑️ حذف هذا التقرير</button>`}</div>`};
+A.hsel=id=>{HSEL=id;render()};
+A.delhist=id=>ask('حذف هذا التقرير؟ (الأصناف تبقى)',()=>{S.hist=(S.hist||[]).filter(h=>h.id!==id);HSEL=null;save('انحذف');render()});
+
 A.undoimp=id=>ask('التراجع عن هذا الاستيراد؟ بتنحذف مبيعاته وترجع المواد للمخزون.',()=>{S.sales.filter(s=>s.imp===id).forEach(s=>s.items.forEach(it=>it.s&&deduct(it.p,it.s,it.q,-1)));
   S.sales=S.sales.filter(s=>s.imp!==id);S.imports=(S.imports||[]).filter(b=>b.id!==id);save('تم التراجع');render()});
 A.daily=()=>openM(`<h3>إدخال ملخص اليوم</h3><p class="mut">من تقرير الكاشير (الورقي أو الشاشة)، اكتب كم كوب انباع من كل صنف.</p><label>التاريخ</label><input type="date" id="dd" value="${dk(Date.now())}">
@@ -535,7 +624,7 @@ A.savedaily=()=>{const t=new Date(val('dd')+'T20:00').getTime()||Date.now();cons
   S.imports=S.imports||[];S.imports.push({id:bid,t,file:'ملخص يدوي '+dk(t),lines:items.length,total:r2(total)});closeM();save('✓ تم تسجيل '+f2(total));render()};
 
 /* ---------- المستشار: ملاحظات واقتراحات ---------- */
-const AREAS={log:['data'],home:null,turnover:['buy','cost'],sell:['sales'],needs:['stock','buy'],stock:['stock','buy'],items:['price','menu'],yield:['price','buy'],budget:['cost','buy'],reports:['sales','menu'],prefs:['data']};
+const AREAS={log:['data'],cashier:['sales'],home:null,turnover:['buy','cost'],sell:['sales'],needs:['stock','buy'],stock:['stock','buy'],items:['price','menu'],yield:['price','buy'],budget:['cost','buy'],reports:['sales','menu'],prefs:['data']};
 function salesBy(days){const from=sod(Date.now())-(days-1)*DAY;const by={};inRange(S.sales,from).forEach(s=>s.items.forEach(i=>{const o=by[i.p]=by[i.p]||{q:0,rev:0,pr:0,n:(PROD(i.p)||{}).name||i.n};o.q+=i.q;o.rev+=i.price*i.q;o.pr+=(i.price-i.cost)*i.q}));return by}
 function advise(){const N=[];const add=(lv,area,t)=>N.push({lv,area,t});const T=+S.settings.target;const cur=esc(S.settings.cur);
   const m=month();const allS=S.sales;const first=allS.length?Math.min(...allS.map(s=>s.t)):0;const daysData=first?Math.ceil((Date.now()-sod(first))/DAY):0;
@@ -766,7 +855,7 @@ window.APP={getS:()=>S,render:()=>render(),toast:m=>toast(m),
 let BIMG=null;
 document.addEventListener('change',async e=>{if(e.target.id!=='b_img')return;const f=e.target.files&&e.target.files[0];if(!f||!window.CLOUD)return;BIMG={busy:true};const st=$('#b_imgst');if(st)st.textContent='⏳ جاري رفع الصورة…';
   try{BIMG={busy:false,path:await CLOUD.uploadImg(f)};if(st)st.textContent='✓ انرفعت الصورة'}catch(err){BIMG=null;if(st)st.textContent='⚠️ ما انرفعت الصورة'}});
-const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export']);
+const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export','delhist']);
 function blocked(a,id){if(BLOCK.has(a))return true;if((a==='ing'||a==='prod')&&id)return true;if((a==='saveing'||a==='saveprod')&&edit)return true;return false}
 function lockUI(){if(!ISSTAFF)return;document.querySelectorAll('[data-a]').forEach(b=>{if(blocked(b.dataset.a,b.dataset.id))b.remove()});
   document.querySelectorAll('.nd_cv,.tv_ev,.nd_g,.sz_n,.sz_ml,.sz_j,.sz_pk,#p_logo').forEach(i=>{i.disabled=true});
@@ -783,7 +872,7 @@ function applyDiff(d){let n=0;if(!d)return 0;
   (d.imports||[]).forEach(b=>{S.imports=S.imports||[];if(!S.imports.find(x=>x.id===b.id))S.imports.push(b)});
   (d.extra||[]).forEach(e=>{S.extraList=S.extraList||[];if(S.extraList.find(x=>x.i===e.i&&x.t===e.t))return;if(S.purchases.some(p=>p.ing===e.i&&p.t>=e.t))return;S.extraList=S.extraList.filter(x=>x.i!==e.i);S.extraList.push(e);n++});
   return n}
-if(ISSTAFF)['savebuy','saveneedadd','savedaily','impgo','checkout','saveing','saveprod'].forEach(k=>{const f=A[k];if(!f)return;A[k]=(...a)=>{const sn=snap();const r=f(...a);Promise.resolve(r).then(()=>{const d=diffSnap(sn);if(d)CLOUD.sendAction(d).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت وحاول مرة ثانية'))});return r}});
+if(ISSTAFF)['savebuy','saveneedadd','savedaily','impgo','crgo','checkout','saveing','saveprod'].forEach(k=>{const f=A[k];if(!f)return;A[k]=(...a)=>{const sn=snap();const r=f(...a);Promise.resolve(r).then(()=>{const d=diffSnap(sn);if(d)CLOUD.sendAction(d).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت وحاول مرة ثانية'))});return r}});
 window.APP.applyDiff=d=>{const n=applyDiff(d);return n};window.APP.commit=()=>{save();render()};
 
 /* ---------- سجل التغييرات ---------- */
