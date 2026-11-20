@@ -1,5 +1,9 @@
 
 (function(){
+function pF(v){if(typeof v==='number')return v;let t=String(v??'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/٫/g,'.').replace(/\s/g,'');if(!t.includes('.')&&/^-?\d+[,،]\d{1,2}$/.test(t))t=t.replace(/[,،]/,'.');t=t.replace(/[,٬،]/g,'').replace(/[^\d.\-]/g,'');return parseFloat(t)}
+// خانات الأرقام: تقبل الفاصلة (2,5 أو 2.5) والأرقام العربية
+(function(){const fix=root=>{(root.querySelectorAll?root.querySelectorAll('input[type=number]'):[]).forEach(i=>{i.type='text';i.setAttribute('inputmode','decimal');i.setAttribute('autocomplete','off')})};try{new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1){if(n.matches&&n.matches('input[type=number]'))fix(n.parentNode);else fix(n)}}))).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}})();
+
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -224,8 +228,8 @@ V.sell=()=>{const items=Object.entries(cart).filter(([,q])=>q>0);const kp=k=>{co
 const inPack=i=>i&&i.buyIn==='pack'&&+i.packSize>0;
 const qtyTxt=(i,q)=>inPack(i)?f2(Math.ceil(q/i.packSize))+' '+esc(i.pack||'كرتون'):f2(q)+' '+esc(i.unit);
 const estOf=x=>x.manual&&(S.extraList||[]).some(e=>e.i===x.i.id&&e.price>0)?x.est:inPack(x.i)?Math.ceil(x.buy/x.i.packSize)*x.i.packSize*x.i.cost:x.est;
-document.addEventListener('change',e=>{if(e.target.classList.contains('nd_cv')){const i=ING(e.target.dataset.id);if(i){i.cv=parseFloat(e.target.value)||0;save('✓ '+i.name+': يكفي '+(i.cv||S.settings.cover)+' يوم');render()}}
-  if(e.target.classList.contains('nd_g')){const v=parseFloat(e.target.value);if(v>0){S.settings.cover=v;save('✓ المقاضي تكفي '+v+' أيام');render()}}});
+document.addEventListener('change',e=>{if(e.target.classList.contains('nd_cv')){const i=ING(e.target.dataset.id);if(i){i.cv=pF(e.target.value)||0;save('✓ '+i.name+': يكفي '+(i.cv||S.settings.cover)+' يوم');render()}}
+  if(e.target.classList.contains('nd_g')){const v=pF(e.target.value);if(v>0){S.settings.cover=v;save('✓ المقاضي تكفي '+v+' أيام');render()}}});
 function needList(){const n=needs();const m={};n.filter(x=>x.buy>0).forEach(x=>m[x.i.id]=x);(S.extraList||[]).forEach(e=>{const i=ING(e.i);if(!i)return;const x=m[e.i];if(x){x.buy=Math.max(x.buy,e.q);x.est=e.price>0?e.price:x.buy*i.cost;x.manual=true}else{const b=n.find(y=>y.i.id===e.i)||{cv:+i.cv||S.settings.cover};m[e.i]={i,d:0,cv:b.cv,left:Infinity,buy:e.q,est:e.price>0?e.price:e.q*i.cost,st:'ok',manual:true}}});return{n,list:Object.values(m)}}
 V.needs=()=>{const {n,list}=needList();const tot=list.reduce((s,x)=>s+estOf(x),0);const m=month();const left=S.settings.budget-m.pur;const ord={b:0,w:1,ok:2};
   const unk=n.filter(x=>!x.d&&!x.i.min&&!(+x.i.every>0)&&['منظفات','بلاستيك وتغليف','ثلج','أغراض الحلا','مجمدات'].includes(x.i.cat)&&!S.prods.some(p=>p.recipe.some(r=>r.i===x.i.id))&&!S.sizes.some(z=>(z.pk||[]).includes(x.i.id)));
@@ -308,7 +312,7 @@ function yA0(){const i=ING(yf);if(!i)return'';const cur=esc(S.settings.cur);
    <div style="margin:12px 0 6px;font-weight:800">يسوي لك${sp?' ('+esc(sp.name)+')':''}:</div>${!sp?`<div class="row" style="gap:6px;margin-bottom:8px"><span class="mut">احسب الربح على سعر</span><select id="ypr" style="width:auto;padding:5px">${allCats().filter(c=>['عصيرات','خلطات','ملك شيك'].includes(c)).map(c=>`<optgroup label="${esc(c)}">${S.prods.filter(p=>p.cat===c).map(p=>`<option value="${p.id}" ${p.id===ypr?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select><span class="mut">(كوب ممتلي)</span></div>`:''}<div class="row" style="gap:8px">${zs.map(box).join('')}</div>${tot}`}
 function yxHtml(){const opts=sel=>ICATS.filter(c=>!['بلاستيك وتغليف','منظفات'].includes(c)).map(c=>{const g=S.ings.filter(x=>(x.cat||'أخرى')===c);return g.length?`<optgroup label="${c}">${g.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>`:''}).join('');
   return yx.map((x,k)=>{const i=ING(x.i)||{};return `<div class="row" style="gap:6px;margin-top:6px;flex-wrap:nowrap"><b>+</b><input class="yx_n" id="yxn_${k}" data-k="${k}" type="number" inputmode="decimal" step="any" min="0" value="${r2(x.n*1000)/1000}" style="width:64px;padding:6px"><select class="yx_m" data-k="${k}" style="width:auto;padding:6px">${modesOf(i).map(([m,l])=>`<option value="${m}" ${m===x.m?'selected':''}>${esc(l)}</option>`).join('')}</select><select class="yx_i" data-k="${k}" style="padding:6px">${opts(x.i)}</select><button class="btn ghost sm" data-a="yxdel" data-id="${k}">✕</button></div>${x.m!=='pack'?`<div style="margin:2px 22px 0 0">${fracBtns('yxn_'+k)}</div>`:''}`}).join('')}
-document.addEventListener('input',e=>{if(e.target.classList.contains('yx_n')){yx[e.target.dataset.k].n=parseFloat(e.target.value)||0;$('#yA').innerHTML=yA()}});
+document.addEventListener('input',e=>{if(e.target.classList.contains('yx_n')){yx[e.target.dataset.k].n=pF(e.target.value)||0;$('#yA').innerHTML=yA()}});
 document.addEventListener('change',e=>{if(e.target.id==='ypr'){ypr=e.target.value;$('#yA').innerHTML=yA();return}const k=e.target.dataset.k;if(e.target.classList.contains('yx_i')){const i=ING(e.target.value);yx[k].i=e.target.value;yx[k].m=modesOf(i).find(m=>m[0]==='unit')?'unit':modesOf(i)[0][0];render()}if(e.target.classList.contains('yx_m')){yx[k].m=e.target.value;render()}if(e.target.classList.contains('yx_n'))saveUI()});
 
 function yB(){const p=PROD(yp);if(!p)return'';if(!hasRec(p))return `<div class="alert a-w">«${esc(p.name)}» ما له وصفة. <a href="#items" data-a="prod" data-id="${p.id}">أضف مكوناته</a> (كم مل من كل عصير في الكوب الوسط) وبعدها تطلع لك الحسابات.</div>`;
@@ -320,9 +324,9 @@ function yB(){const p=PROD(yp);if(!p)return'';if(!hasRec(p))return `<div class="
    <div class="kpis" style="margin-top:12px"><div class="kpi"><div class="l">إجمالي الخلطة</div><div class="v">${f2(n*ml/1000)} لتر</div><div class="s">${Math.round(ml)} مل للكوب</div></div><div class="kpi"><div class="l">التكلفة</div><div class="v">${C(tc)}</div><div class="s">${C(n?tc/n:0)} للكوب</div></div><div class="kpi"><div class="l">الدخل (${n} × ${f2(pr0)})</div><div class="v">${C(rev)}</div></div><div class="kpi"><div class="l">الربح</div><div class="v ${pr>=0?'pos':'neg'}">${C(pr)}</div><div class="s">نسبة التكلفة ${rev?Math.round(tc/rev*100):0}% · المقترح ${C(sugPrice(n?tc/n:0))}</div></div></div>
    ${cap!==Infinity?`<div class="tip">📦 من مخزونك الحالي تقدر تسوي <b>${cap}</b> ${esc(vname(p,ysz))} — أول شي يخلص: <b>${esc(lim)}</b></div>`:''}`}
 document.addEventListener('input',e=>{const id=e.target.id;if(!['yn','yc','yl'].includes(id))return;
-  if(id==='yn'){yn=parseFloat(e.target.value)||0;$('#yA').innerHTML=yA()}
+  if(id==='yn'){yn=pF(e.target.value)||0;$('#yA').innerHTML=yA()}
   if(id==='yc'){yc=parseInt(e.target.value)||0;$('#yl').value=r2(yc*juiceMl(PROD(yp),ysz)/1000);$('#yB').innerHTML=yB()}
-  if(id==='yl'){const ml=juiceMl(PROD(yp),ysz);yc=ml?Math.round((parseFloat(e.target.value)||0)*1000/ml):0;$('#yc').value=yc;$('#yB').innerHTML=yB()}});
+  if(id==='yl'){const ml=juiceMl(PROD(yp),ysz);yc=ml?Math.round((pF(e.target.value)||0)*1000/ml):0;$('#yc').value=yc;$('#yB').innerHTML=yB()}});
 document.addEventListener('change',e=>{const id=e.target.id;if(id==='yn')render();if(id==='yf'){yf=e.target.value;render()}if(id==='yp'){yp=e.target.value;render()}if(id==='ys1'||id==='ys2'){ysz=e.target.value;render()}});
 
 const _measure=id=>{edit=id;const i=ING(id);const cp=i.pcs&&i.packSize?Math.round(i.pcs*i.packSize):'';openM(`<h3>قِس عائد ${esc(i.name)}</h3><p class="mut">اعصر كمية معروفة واكتب كم لتر طلع. تقدر تحسبها <b>بالحبة</b> أو <b>بالوزن</b>.</p>
@@ -372,7 +376,7 @@ V.prefs=()=>{const s=S.settings;return `<div class="card"><h3>إعدادات ا�
 /* ---------- النوافذ ---------- */
 function openM(html){const m=$('#modal');m.querySelector('.box').innerHTML=html;m.classList.add('on');const f=m.querySelector('input,select');if(f)setTimeout(()=>f.focus(),50)}
 function closeM(){$('#modal').classList.remove('on')}
-const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};const num=id=>parseFloat(val(id))||0;
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};const num=id=>pF(val(id))||0;
 const ingOpts=sel=>S.ings.map(i=>`<option value="${i.id}" ${i.id===sel?'selected':''}>${esc(i.name)} (${esc(i.unit)})</option>`).join('');
 const foot=(a,del)=>`<div class="row" style="margin-top:16px">${del?`<button class="btn red" data-a="${del}">حذف</button>`:''}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="${a}">حفظ</button></div>`;
 function ask(msg,fn){openM(`<h3>${msg}</h3><div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" data-a="close">لا</button><button class="btn red" data-a="yes">نعم</button></div>`);A.yes=()=>{closeM();fn()}}
@@ -406,10 +410,11 @@ A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:
  <label>كيلو ولا كرتون؟</label><div class="row" id="i_ut">${[['unit',uN],['pack',pN]].map(([k,l])=>`<button type="button" class="btn sp ${k===IU?'':'ghost'}" data-a="iunit" data-id="${k}">${esc(l)}</button>`).join('')}</div>
  <div id="i_psw" style="${IU==='pack'?'':'display:none'}"><label>كم ${esc(uN)} في ال${esc(pN)}؟</label><input id="i_ps2" type="number" inputmode="decimal" step="any" value="${i.packSize||''}"></div>
  <label id="i_sl">الموجود الآن (${esc(IU==='pack'?pN:uN)})</label><input id="i_s" type="number" inputmode="decimal" step="any" value="${IU==='pack'?r2(i.stock/i.packSize):r2(i.stock)}">
+ <label>يكفي كم يوم؟</label><input id="i_cv" type="number" inputmode="decimal" step="any" value="${i.cv||''}" placeholder="${S.settings.cover} (الافتراضي)">
  <details style="margin-top:14px"><summary class="mut" style="cursor:pointer">⚙️ خيارات أكثر</summary>
  <div class="two"><div><label>الوحدة</label><input id="i_u" value="${esc(i.unit)}" list="units"><datalist id="units"><option value="كجم"><option value="لتر"><option value="حبة"><option value="حزمة"><option value="كيس"><option value="علبة"></datalist></div><div><label>سعر الوحدة</label><input id="i_c" type="number" step="any" value="${i.cost}"></div></div>
  <div class="two"><div><label>الحد الأدنى</label><input id="i_m" type="number" step="any" value="${i.min}"></div><div><label>النوع</label><select id="i_cat">${ICATS.map(c=>`<option ${c===(i.cat||'أخرى')?'selected':''}>${c}</option>`).join('')}</select></div></div>
- <div class="two"><div><label>الاستهلاك بالأسبوع</label><input id="i_r" type="number" step="any" value="${i.rate?r2(i.rate*7):''}"></div><div><label>اشترِ يكفي كم يوم</label><input id="i_cv" type="number" step="any" value="${i.cv||''}" placeholder="${S.settings.cover}"></div></div>
+ <label>الاستهلاك بالأسبوع</label><input id="i_r" type="number" step="any" value="${i.rate?r2(i.rate*7):''}">
  <div class="two"><div><label>اسم العبوة</label><input id="i_pk" value="${esc(i.pack||'')}" placeholder="كرتون"></div><div><label>كم لتر عصير من ${esc(i.unit==='حبة'?'الحبة':'الكيلو')}</label><input id="i_y" type="number" step="any" value="${i.yield||''}"></div></div>
  <label>كم حبة تقريباً في ال${esc(uN)}</label><input id="i_pc" type="number" step="any" value="${i.pcs||''}"></details>${foot('saveing',id?'delingq':'')}`)};
 A.iunit=k=>{if(k===IU)return;const ps=num('i_ps2')||(edit&&+(ING(edit)||{}).packSize)||0;const v=num('i_s');IU=k;document.querySelectorAll('#i_ut button').forEach(b=>b.classList.toggle('ghost',b.dataset.id!==k));
@@ -422,11 +427,11 @@ A.saveing=()=>{if(!val('i_n'))return toast('اكتب الاسم');let i=edit?ING
   Object.assign(i,{name:val('i_n'),unit,cost:num('i_c'),stock:r2(stock),min:num('i_m'),pack,packSize,buyIn,yield:num('i_y'),pcs:num('i_pc'),cat:val('i_cat'),rate:num('i_r')/7,cv:num('i_cv'),stockAt:Date.now()});closeM();save('تم الحفظ');render()};
 A.delingq=()=>{const used=S.prods.some(p=>p.recipe.some(r=>r.i===edit))||S.sizes.some(z=>(z.pk||[]).includes(edit));if(used)return toast('المادة مستخدمة في وصفة صنف');S.ings=S.ings.filter(x=>x.id!==edit);closeM();save('تم الحذف');render()};
 
-let rec=[],recMode='cup';const curCpl=()=>{const e=document.querySelector('.pr_cpl[data-s="M"]');const v=e&&parseFloat(e.value);return v||1000/jmlM()};const rmul=()=>recMode==='L'?curCpl():1;
+let rec=[],recMode='cup';const curCpl=()=>{const e=document.querySelector('.pr_cpl[data-s="M"]');const v=e&&pF(e.value);return v||1000/jmlM()};const rmul=()=>recMode==='L'?curCpl():1;
 function recHtml(){return rec.map((r,k)=>{const i=ING(r.i),lq=LQ(i);return `<div class="row" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)"><select style="flex:1 1 100%" data-k="${k}" class="r_i">${ingOpts(r.i)}</select><input style="flex:1;min-width:70px" type="number" inputmode="decimal" step="any" class="r_q" id="rq_${k}" data-k="${k}" value="${r2(r.q*rmul()*10000)/10000}"><span class="mut">${esc(i?i.unit:'')}</span>${i&&i.unit==='حبة'?fracBtns('rq_'+k):''}${i&&+i.pcs>0&&i.unit!=='حبة'&&i.pack!=='حبة'?`<span class="mut">=</span><input style="flex:1;min-width:60px" type="number" inputmode="decimal" step="any" class="r_pc" id="rpc_${k}" data-k="${k}" value="${r2(r.q*rmul()*i.pcs*100)/100}"><span class="mut">حبة</span>${fracBtns('rpc_'+k)}`:''}${lq&&i.unit!=='لتر'?`<span class="mut">=</span><input style="flex:1;min-width:70px" type="number" step="any" class="r_ml" data-k="${k}" value="${Math.round(r.q*rmul()*lq*1000)}"><span class="mut">مل عصير</span>`:''}<button class="btn ghost sm" data-a="recdel" data-id="${k}">✕</button></div>`}).join('')}
 function recCost(){return rec.reduce((s,r)=>{const i=ING(r.i);return s+(i?i.cost*(+r.q||0):0)},0)}
-function recLive(){const el=$('#rc');if(!el)return;const prices={};document.querySelectorAll('.pr_s').forEach(i=>{const v=parseFloat(i.value);if(v>0)prices[i.dataset.s]=v});
-  const cpl={};document.querySelectorAll('.pr_cpl').forEach(i=>{const v=parseFloat(i.value);if(v>0)cpl[i.dataset.s]=v});const tmp={recipe:rec.filter(r=>r.i&&r.q>0),prices,cpl:Object.keys(cpl).length?cpl:null,lit:Object.keys(cpl).length>0};const ml=juiceMl(tmp,'M');const T=+S.settings.target;
+function recLive(){const el=$('#rc');if(!el)return;const prices={};document.querySelectorAll('.pr_s').forEach(i=>{const v=pF(i.value);if(v>0)prices[i.dataset.s]=v});
+  const cpl={};document.querySelectorAll('.pr_cpl').forEach(i=>{const v=pF(i.value);if(v>0)cpl[i.dataset.s]=v});const tmp={recipe:rec.filter(r=>r.i&&r.q>0),prices,cpl:Object.keys(cpl).length?cpl:null,lit:Object.keys(cpl).length>0};const ml=juiceMl(tmp,'M');const T=+S.settings.target;
   const rows=S.sizes.filter(z=>prices[z.id]).map(z=>{const c=cost(tmp,z.id),pr=prices[z.id],pc=c/pr*100;return `<tr><td>${esc(z.name)}</td><td>${f2(c)}</td><td>${f2(pr)}</td><td class="pos">${f2(pr-c)}</td><td>${tmp.recipe.length?`<span class="tag ${pc>T+8?'t-b':pc>T+2?'t-w':'t-ok'}">${Math.round(pc)}%</span>`:'—'}</td><td class="mut">${f2(sugPrice(c))}</td></tr>`}).join('');
   el.innerHTML=`${ml?`حجم العصير في الكوب الوسط: <b>${Math.round(ml)} مل</b>`:''}${rows?`<table style="margin-top:6px"><tr><th>المقاس</th><th>التكلفة</th><th>السعر</th><th>الربح</th><th>النسبة</th><th>المقترح</th></tr>${rows}</table>`:'<span class="mut">اكتب الأسعار عشان يطلع الربح</span>'}`}
 A.prod=id=>{edit=id;const p=id?PROD(id):{name:'',cat:icat||allCats()[0]||'',prices:{},recipe:[]};rec=p.recipe.map(r=>({...r}));
@@ -438,9 +443,9 @@ A.prod=id=>{edit=id;const p=id?PROD(id):{name:'',cat:icat||allCats()[0]||'',pric
 A.recadd=()=>{rec.push({i:S.ings[0]?.id,q:0});$('#recs').innerHTML=recHtml();recLive()};A.recdel=k=>{rec.splice(+k,1);$('#recs').innerHTML=recHtml();recLive()};
 document.addEventListener('input',e=>{const k=e.target.dataset.k;const sib=c=>e.target.parentNode.querySelector(c);
   const syncR=(skip)=>{const i=ING(rec[k].i)||{};const m=sib('.r_ml'),p=sib('.r_pc'),q=sib('.r_q');const M=rmul();if(m&&skip!=='ml')m.value=Math.round(rec[k].q*M*LQ(i)*1000);if(p&&skip!=='pc')p.value=r2(rec[k].q*M*i.pcs*100)/100;if(q&&skip!=='q')q.value=r2(rec[k].q*M*10000)/10000};
-  if(e.target.classList.contains('r_q')){rec[k].q=(parseFloat(e.target.value)||0)/rmul();syncR('q')}
-  if(e.target.classList.contains('r_pc')){const i=ING(rec[k].i);rec[k].q=(parseFloat(e.target.value)||0)/i.pcs/rmul();syncR('pc')}
-  if(e.target.classList.contains('r_ml')){const lq=LQ(ING(rec[k].i));rec[k].q=(parseFloat(e.target.value)||0)/1000/lq/rmul();syncR('ml')}if(e.target.classList.contains('r_i'))rec[k].i=e.target.value;if(e.target.closest('#modal')&&$('#rc'))recLive()});
+  if(e.target.classList.contains('r_q')){rec[k].q=(pF(e.target.value)||0)/rmul();syncR('q')}
+  if(e.target.classList.contains('r_pc')){const i=ING(rec[k].i);rec[k].q=(pF(e.target.value)||0)/i.pcs/rmul();syncR('pc')}
+  if(e.target.classList.contains('r_ml')){const lq=LQ(ING(rec[k].i));rec[k].q=(pF(e.target.value)||0)/1000/lq/rmul();syncR('ml')}if(e.target.classList.contains('r_i'))rec[k].i=e.target.value;if(e.target.closest('#modal')&&$('#rc'))recLive()});
 document.addEventListener('change',e=>{if(e.target.classList.contains('r_i')){rec[e.target.dataset.k].i=e.target.value;$('#recs').innerHTML=recHtml();recLive()}});
 A.saveprod=()=>{if(!val('pr_n'))return toast('اكتب الاسم');let p=edit?PROD(edit):null;if(!p){p={id:uid()};S.prods.push(p)}const prices={};document.querySelectorAll('.pr_s').forEach(i=>{const v=toNum(i.value);if(v>0)prices[i.dataset.s]=v});
   const cat=val('pr_c')||'أخرى';S.cats=S.cats||[];if(!S.cats.includes(cat))S.cats.push(cat);const cpl={};document.querySelectorAll('.pr_cpl').forEach(i=>{const v=toNum(i.value);if(v>0)cpl[i.dataset.s]=v});const hasC=Object.keys(cpl).length>0;Object.assign(p,{name:val('pr_n'),cat,prices,recipe:rec.filter(r=>r.i&&r.q>0),est:false,cpl:hasC?cpl:null,lit:hasC||!!p.lit});closeM();save('تم الحفظ');render()};
@@ -615,7 +620,7 @@ const inTv=i=>tvc==='الكل'||(i.cat||'أخرى')===tvc;
 function covCard(){const n=needs().filter(x=>inTv(x.i));
   return `<div class="card"><h3>⏳ المخزون ومعدل الشراء</h3>${tvChips()}
    ${n.length?`<table><tr><th>المادة</th><th>الموجود</th><th>يكفي</th><th>كل كم يوم تشتريه</th></tr>${n.map(x=>`<tr><td>${esc(x.i.name)}</td><td>${inPack(x.i)?f2(x.i.stock/x.i.packSize)+' '+esc(x.i.pack):f2(x.i.stock)+' '+esc(x.i.unit)}</td><td>${x.left===Infinity?'<span class="mut">—</span>':`<span class="tag ${x.st==='b'?'t-b':x.st==='w'?'t-w':'t-ok'}">${f2(x.left)} يوم</span>`}</td><td><input class="tv_ev" data-id="${x.i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+x.i.every||0}" style="width:64px;padding:4px 6px"> <span class="mut">يوم</span></td></tr>`).join('')}</table>`:'<p class="mut">ما فيه مواد في هذا القسم.</p>'}</div>`}
-document.addEventListener('change',e=>{if(e.target.classList.contains('tv_ev')){const i=ING(e.target.dataset.id);if(i){i.every=parseFloat(e.target.value)||0;save(i.every?'✓ '+i.name+': كل '+i.every+' يوم':'');}}});
+document.addEventListener('change',e=>{if(e.target.classList.contains('tv_ev')){const i=ING(e.target.dataset.id);if(i){i.every=pF(e.target.value)||0;save(i.every?'✓ '+i.name+': كل '+i.every+' يوم':'');}}});
 V.turnover=()=>{if(!S.purchases.length&&!S.ings.some(i=>+i.every>0))return `<div class="card"><h3>📦 معدل الشراء <span><button class="btn sec sm" data-a="every">حدد كل كم يوم</button></span></h3></div>${covCard()}`;
   const st=tvStats(tvp);const cats=Object.keys(st.cat);
   const its=Object.values(st.it).filter(x=>tvc==='الكل'||(x.i.cat||'أخرى')===tvc).sort((a,b)=>b.spent-a.spent||b.nAll-a.nAll);
@@ -634,7 +639,7 @@ V.turnover=()=>{if(!S.purchases.length&&!S.ings.some(i=>+i.every>0))return `<div
 A.tvp=d=>{tvp=+d;render()};
 document.addEventListener('input',e=>{if(e.target.classList.contains('pr_cpl')&&recMode==='L'){$('#recs').innerHTML=recHtml()}});
 A.recmode=m=>{recMode=m;const keep={n:val('pr_n'),c:val('pr_c'),pr:[...document.querySelectorAll('.pr_s,.pr_cpl')].map(i=>[i.className+'|'+i.dataset.s,i.value])};const r=rec.map(x=>({...x}));A.prod(edit);rec=r;$('#recs').innerHTML=recHtml();$('#pr_n').value=keep.n;$('#pr_c').value=keep.c;keep.pr.forEach(([k,v])=>{const [c,s]=k.split('|');const e=document.querySelector(`.${c}[data-s="${s}"]`);if(e)e.value=v});$('#recs').innerHTML=recHtml();recLive()};
-A.frac=x=>{const [id,v]=x.split('|');const el=document.getElementById(id);if(!el)return;const cur=parseFloat(el.value)||0;el.value=Math.round((Math.floor(cur+1e-9)+(+v))*10000)/10000;el.dispatchEvent(new Event('input',{bubbles:true}));if(id==='yn')render()};
+A.frac=x=>{const [id,v]=x.split('|');const el=document.getElementById(id);if(!el)return;const cur=pF(el.value)||0;el.value=Math.round((Math.floor(cur+1e-9)+(+v))*10000)/10000;el.dispatchEvent(new Event('input',{bubbles:true}));if(id==='yn')render()};
 A.bkrestore=k=>ask('ترجع البيانات لنسخة '+k.slice(9)+'؟ أي تعديل بعدها بيروح.',()=>{try{const d=JSON.parse(localStorage.getItem(k));if(d&&d.ings){S=d;save('✓ تم الاسترجاع');render()}}catch(e){toast('ما قدرت أسترجع')}});
 A.dellogo=()=>{delete S.settings.logo;save('تم حذف الشعار');render()};
 document.addEventListener('change',e=>{if(e.target.id!=='p_logo')return;const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const M=200,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);S.settings.logo=c.toDataURL('image/jpeg',.85);save('✓ تم إضافة الشعار');render()};im.onerror=()=>toast('ما قدرت أقرأ الصورة');im.src=rd.result};rd.readAsDataURL(f)});
