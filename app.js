@@ -709,10 +709,10 @@ A.matsCopy=()=>copy(S.ings.map(i=>[i.name,i.unit,i.pack||'',i.cat||'أخرى'].j
 /* ---------- السحابة: الموظفين والمشتريات الواردة ---------- */
 let STAFF=null;
 function staffCard(){if(!window.CLOUD)return'';if(STAFF===null){STAFF=[];CLOUD.listStaff().then(r=>{STAFF=r||[];if(tab==='prefs')render()}).catch(()=>{})}
-  const rl={staff:'موظف',pending:'بانتظار',disabled:'موقوف',owner:'المالك'};
+  const rl={staff:'',pending:'بانتظار',disabled:'موقوف',owner:''};
   return `<div class="card"><h3>👥 الموظفين <button class="btn sm" data-a="staffadd">+ موظف</button></h3>
    <p class="mut" style="margin-top:0">الموظف يدخل من <b>نفس رابطك</b> باسمه ورقمه السري. يشوف كل شي، ويقدر يضيف بس: المبيعات والمشتريات والمواد والأصناف.</p>
-   ${STAFF.length?`<table>${STAFF.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="tag ${p.role==='staff'?'t-ok':p.role==='owner'?'t-ok':'t-w'}">${rl[p.role]||esc(p.role)}</span></td><td>${p.role==='owner'?'':p.role==='staff'?`<button class="btn ghost sm" data-a="staffrole" data-id="${p.user_id}|disabled">إيقاف</button>`:`<button class="btn sec sm" data-a="staffrole" data-id="${p.user_id}|staff">تفعيل</button>`}</td></tr>`).join('')}</table>`:'<p class="mut">ما فيه موظفين لسه.</p>'}
+   ${STAFF.length?`<table>${STAFF.map(p=>`<tr><td>${esc(p.name)}</td><td>${rl[p.role]?`<span class="tag t-w">${rl[p.role]}</span>`:''}</td><td>${p.role==='owner'?'':p.role==='staff'?`<button class="btn ghost sm" data-a="staffrole" data-id="${p.user_id}|disabled">إيقاف</button>`:`<button class="btn sec sm" data-a="staffrole" data-id="${p.user_id}|staff">تفعيل</button>`}</td></tr>`).join('')}</table>`:'<p class="mut">ما فيه موظفين لسه.</p>'}
    <div class="row" style="margin-top:10px"><span class="mut">داخل باسم: <b>${esc(CLOUD.userName||'')}</b></span><span class="sp"></span><button class="btn ghost sm" data-a="logout">تسجيل خروج</button></div></div>`}
 A.staffadd=()=>openM(`<h3>إضافة موظف</h3><label>اسم الدخول (بالإنجليزي، بدون مسافات)</label><input id="st_u" placeholder="ahmad" autocapitalize="off" dir="ltr"><label>الاسم اللي يطلع</label><input id="st_n" placeholder="أحمد"><label>الرقم السري (6 خانات أو أكثر)</label><input id="st_p" dir="ltr" placeholder="مثلاً 123456"><p class="mut">أعطِ الموظف رابط النظام واسم الدخول والرقم السري.</p>${foot('staffsave')}`);
 A.staffsave=async()=>{const u=val('st_u').toLowerCase().replace(/[^a-z0-9._-]/g,''),n=val('st_n')||u,p=val('st_p');if(!u)return toast('اكتب اسم الدخول');if(p.length<6)return toast('الرقم السري 6 خانات أو أكثر');
