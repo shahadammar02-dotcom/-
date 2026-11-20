@@ -140,6 +140,7 @@ if((S.v||0)<21){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/
     Object.keys(old.prices||{}).forEach(k=>{if(!(+tp.prices[k]>0))tp.prices[k]=old.prices[k]});
     (S.sales||[]).forEach(sl=>sl.items.forEach(it=>{if(it.p===old.id){it.p=tp.id;it.n=tp.name+(it.s&&it.s!=='U'?' '+(((S.sizes||[]).find(z=>z.id===it.s)||{}).name||''):'')}}));
     (S.hist||[]).forEach(h=>h.items.forEach(o=>{if(o.p===old.id)o.p=tp.id}));S.prods=S.prods.filter(p=>p!==old);S.cmap=S.cmap||{};S.cmap[c]=tp.id});S.v=21}
+if((S.v||0)<22){S.ings.forEach(i=>{if(String(i.name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,' ').trim()==='تفاح احمر')i.cat='فواكه وخضار'});S.v=22}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
