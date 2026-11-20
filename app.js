@@ -123,6 +123,16 @@ if((S.v||0)<17){const D={};ING0.forEach(a=>D[a[0]]=a[2]);Object.assign(D,{'أك�
   const F={'إيجار':4000,'رواتب':6000,'كهرباء وماء':900,'صيانة':200,'اشتراكات':150};S.fixed=(S.fixed||[]).filter(f=>!(F[f.name]!==undefined&&+f.amount===F[f.name]));
   S.expenses=(S.expenses||[]).filter(e=>!e.demo);if(+S.settings.budget===7000)S.settings.budget=0;S.v=17}
 if((S.v||0)<18){const now=Date.now();S.ings.forEach(i=>{if(+i.cv>0&&+i.rate>0&&i.trk){const orig=r2(i.rate*i.cv);const el=Math.max(0,(orig-(+i.stock||0))/i.rate);const at=now-el*DAY;i.stock=orig;i.cvQ=orig;i.until=sod(at)+i.cv*DAY;i.stockAt=at;i.rate=0}});S.v=18}
+if((S.v||0)<19){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ء/g,'').replace(/\s+/g,' ').trim();
+  const FP=n=>S.prods.find(p=>nn(p.name)===nn(n));S.cmap=S.cmap||{};
+  const org=FP('برتقال');['عنب','كيوي'].forEach(n=>{let p=FP(n);if(!p){p={id:uid(),name:n,cat:'عصيرات',prices:{},recipe:[],est:false,cpl:null,lit:false};S.prods.push(p)}p.cat='عصيرات';if(org)p.prices=Object.assign({},org.prices);S.cats=S.cats||[];if(!S.cats.includes('عصيرات'))S.cats.push('عصيرات');S.cmap[n]=p.id});
+  const M=[['جي','جن'],['بانيني','أفوكادو'],['المبراطور','نكهة الطبيبين'],['الامبراطور','نكهة الطبيبين'],['ليالي','حنني'],['المراء','شوشو'],['الامراء','شوشو'],['انتعاش','']];
+  M.forEach(([c,t])=>{const tp=t?FP(t):null;if(t&&!tp)return;const old=FP(c);
+    if(old&&old!==tp&&!(old.recipe||[]).length){(S.hist||[]).forEach(h=>{h.items=h.items.filter(o=>tp||o.p!==old.id);h.items.forEach(o=>{if(o.p===old.id)o.p=tp.id});if(!tp)h.total=Math.round(h.items.reduce((a,b)=>a+b.rev,0)*100)/100});
+      (S.sales||[]).forEach(sl=>sl.items.forEach(it=>{if(it.p===old.id&&tp){it.p=tp.id;it.n=tp.name+(it.s&&it.s!=='U'?' '+(((S.sizes||[]).find(z=>z.id===it.s)||{}).name||''):'');Object.keys(old.prices||{}).forEach(k=>{if(!(+tp.prices[k]>0))tp.prices[k]=old.prices[k]})}}));
+      if(tp)Object.keys(old.prices||{}).forEach(k=>{if(!(+tp.prices[k]>0))tp.prices[k]=old.prices[k]});S.prods=S.prods.filter(p=>p!==old)}
+    S.cmap[c]=tp?tp.id:''});
+  S.v=19}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
