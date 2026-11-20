@@ -133,6 +133,7 @@ if((S.v||0)<19){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/
       if(tp)Object.keys(old.prices||{}).forEach(k=>{if(!(+tp.prices[k]>0))tp.prices[k]=old.prices[k]});S.prods=S.prods.filter(p=>p!==old)}
     S.cmap[c]=tp?tp.id:''});
   S.v=19}
+if((S.v||0)<20){(S.hist||[]).forEach(h=>{if(!h.inc&&h.to===sod(h.to)){h.to+=DAY;h.days=(h.days||0)+1;h.inc=true}});S.v=20}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
@@ -558,6 +559,8 @@ function parseCR(lines){const r={from:0,to:0,items:[],pay:{}};let mode='';let cu
     const nums=l.filter(isN),txt=l.filter(c=>!isN(c)&&!/^[%\s]+$/.test(c));
     if(nums.length>=2&&txt.length){cur={p:txt.join(' ').trim(),q:toNum(nums[0]),t:toNum(nums[nums.length-1]),mod:[]};r.items.push(cur);
       const m2=txt.slice(1).find(c=>/^\(/.test(c));if(m2){}}});
+  // تاريخ «إلى» في الكاشير يشمل اليوم نفسه
+  if(r.to&&r.to===sod(r.to))r.to+=DAY;
   return r.items.length?r:null}
 const mnorm=t=>norm(t).replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ء/g,'');
 function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
@@ -610,7 +613,7 @@ A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').fo
         // يخصم من المخزون بس إذا اليوم بعد آخر مرة انكتب فيها المخزون
         useOf(p,o.s).forEach(u=>{const i=ING(u.i);if(i&&!(+i.rate>0)&&(!i.stockAt||t>i.stockAt))i.stock=r2(i.stock-u.q*o.q)})});
       S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay});nd++}
-    else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
+    else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),inc:true,t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
   if(lastHist)HSEL=lastHist.id;CR=null;closeM();
   save('✓ '+(nd?nd+' يوم انضاف بتاريخه':'')+(np?(nd?' · ':'')+'تقرير فترة انحفظ':'')+' · '+f2(r2(total))+' ريال'+(created?' · '+created+' صنف جديد':'')+(skipped?' · تخطيت '+skipped+' مكرر':''));if(np&&!nd)go('cashier');else render()};
 let HSEL=null;
