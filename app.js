@@ -408,20 +408,21 @@ A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:
   const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit,pN=i.pack||'كرتون';
   openM(`<h3>${id?'تعديل مادة':'مادة جديدة'}</h3><label>الاسم</label><input id="i_n" value="${esc(i.name)}">
  <label>كيلو ولا كرتون؟</label><div class="row" id="i_ut">${[['unit',uN],['pack',pN]].map(([k,l])=>`<button type="button" class="btn sp ${k===IU?'':'ghost'}" data-a="iunit" data-id="${k}">${esc(l)}</button>`).join('')}</div>
- <div id="i_psw" style="${IU==='pack'?'':'display:none'}"><label>كم ${esc(uN)} في ال${esc(pN)}؟</label><input id="i_ps2" type="number" inputmode="decimal" step="any" value="${i.packSize||''}"></div>
- <label id="i_sl">الموجود الآن (${esc(IU==='pack'?pN:uN)})</label><input id="i_s" type="number" inputmode="decimal" step="any" value="${IU==='pack'?r2(i.stock/i.packSize):r2(i.stock)}">
+ 
+ <label id="i_sl">كم ${esc(IU==='pack'?pN:uN)} عندك؟</label><input id="i_s" type="number" inputmode="decimal" step="any" value="${IU==='pack'?r2(i.stock/i.packSize):r2(i.stock)}">
  <label>يكفي كم يوم؟</label><input id="i_cv" type="number" inputmode="decimal" step="any" value="${i.cv||''}" placeholder="${S.settings.cover} (الافتراضي)">
  <details style="margin-top:14px"><summary class="mut" style="cursor:pointer">⚙️ خيارات أكثر</summary>
  <div class="two"><div><label>الوحدة</label><input id="i_u" value="${esc(i.unit)}" list="units"><datalist id="units"><option value="كجم"><option value="لتر"><option value="حبة"><option value="حزمة"><option value="كيس"><option value="علبة"></datalist></div><div><label>سعر الوحدة</label><input id="i_c" type="number" step="any" value="${i.cost}"></div></div>
  <div class="two"><div><label>الحد الأدنى</label><input id="i_m" type="number" step="any" value="${i.min}"></div><div><label>النوع</label><select id="i_cat">${ICATS.map(c=>`<option ${c===(i.cat||'أخرى')?'selected':''}>${c}</option>`).join('')}</select></div></div>
  <label>الاستهلاك بالأسبوع</label><input id="i_r" type="number" step="any" value="${i.rate?r2(i.rate*7):''}">
  <div class="two"><div><label>اسم العبوة</label><input id="i_pk" value="${esc(i.pack||'')}" placeholder="كرتون"></div><div><label>كم لتر عصير من ${esc(i.unit==='حبة'?'الحبة':'الكيلو')}</label><input id="i_y" type="number" step="any" value="${i.yield||''}"></div></div>
+ <label>كم ${esc(uN)} في ال${esc(pN)}؟</label><input id="i_ps2" type="number" inputmode="decimal" step="any" value="${i.packSize||''}">
  <label>كم حبة تقريباً في ال${esc(uN)}</label><input id="i_pc" type="number" step="any" value="${i.pcs||''}"></details>${foot('saveing',id?'delingq':'')}`)};
 A.iunit=k=>{if(k===IU)return;const ps=num('i_ps2')||(edit&&+(ING(edit)||{}).packSize)||0;const v=num('i_s');IU=k;document.querySelectorAll('#i_ut button').forEach(b=>b.classList.toggle('ghost',b.dataset.id!==k));
-  const w=$('#i_psw');if(w)w.style.display=k==='pack'?'':'none';const bs=[...document.querySelectorAll('#i_ut button')];const l=$('#i_sl');if(l)l.textContent='الموجود الآن ('+(bs.find(b=>b.dataset.id===k)||{}).textContent+')';
+  const bs=[...document.querySelectorAll('#i_ut button')];const l=$('#i_sl');if(l)l.textContent='كم '+(bs.find(b=>b.dataset.id===k)||{}).textContent+' عندك؟';
   if(ps&&v)$('#i_s').value=r2(k==='pack'?v/ps:v*ps)};
 A.saveing=()=>{if(!val('i_n'))return toast('اكتب الاسم');let i=edit?ING(edit):null;const isNew=!i;const ps=num('i_ps2')||(i&&+i.packSize)||0;const sv=num('i_s');
-  if(IU==='pack'&&!ps&&!isNew)return toast('اكتب كم في الكرتون');if(!i){i={id:uid()};S.ings.push(i)}
+  if(IU==='pack'&&!ps&&!isNew&&S.prods.some(p=>p.recipe.some(r=>r.i===i.id)))return toast('هذي المادة في وصفات: حدد وزن الكرتون من «خيارات أكثر»');if(!i){i={id:uid()};S.ings.push(i)}
   let unit=val('i_u')||'كجم',pack=val('i_pk'),packSize=ps,stock=sv,buyIn='unit';
   if(IU==='pack'){if(ps){stock=sv*ps;buyIn='pack';if(!pack)pack='كرتون'}else{unit=pack||'كرتون';packSize=0}}
   Object.assign(i,{name:val('i_n'),unit,cost:num('i_c'),stock:r2(stock),min:num('i_m'),pack,packSize,buyIn,yield:num('i_y'),pcs:num('i_pc'),cat:val('i_cat'),rate:num('i_r')/7,cv:num('i_cv'),stockAt:Date.now()});closeM();save('تم الحفظ');render()};
