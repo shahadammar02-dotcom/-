@@ -589,7 +589,7 @@ function crUI(){const F=CR.files;const nod=F.filter(f=>!f.r.from);if(nod.length)
   $('#impb').innerHTML=`<div class="tip">📄 ${F.length>1?F.length+' ملفات · ':''}المجموع <b>${C(tot)}</b>
    ${daily.length?`<br>📅 ${daily.length} يوم${daily.length>1?' (من '+dk(ds[0])+' إلى '+dk(ds[ds.length-1])+')':': <b>'+dk(ds[0])+'</b>'} — كل يوم ينحط في تاريخه`:''}
    ${per.map(f=>`<br>🗂️ فترة ${dk(f.r.from)} إلى ${dk(f.r.to-1)} (${f.days} يوم) — تنحفظ في 📊 تقارير الكاشير`).join('')}</div>
-   ${dups.length?`<div class="alert a-w">⚠️ ${dups.length} من الملفات انضافت قبل (${dups.map(f=>dk(f.r.from)).join('، ')}). بتتخطى عشان ما تتكرر.</div>`:''}
+   ${dups.length?`<div class="alert a-w">⚠️ ${dups.length} من الملفات انضافت قبل (${dups.map(f=>dk(f.r.from)).join('، ')}). ما بتتكرر مبيعاتها (بس يتحدّث عدد الطلبات لو ناقص).</div>`:''}
    ${per.length?'<p class="mut">تقرير الفترة ما فيه تاريخ كل فاتورة، فما يقدر يتوزع على الأيام. عشان كل يوم ينحط في تاريخه ارفع تقارير يومية.</p>':''}
    ${nw.length?`<p class="mut">${nw.length} صنف ما لقيته (${nw.map(esc).join('، ')}): بينضاف كصنف جديد بأسعار الكاشير، أو اختر الصنف المقابل.</p>`:''}
    ${nw.length||F.length===1?`<table><tr><th>في الكاشير</th><th>كوب</th><th>في النظام</th></tr>${Object.entries(names).sort((a,b)=>(crMatch(a[0])==='new'?0:1)-(crMatch(b[0])==='new'?0:1)||b[1].t-a[1].t).map(([n,o])=>`<tr><td>${esc(n)}<div class="mut">${C(o.t)}</div></td><td>${f2(o.q)}</td><td><select class="crp" data-n="${esc(n)}">${po(crMatch(n))}</select></td></tr>`).join('')}</table>`:'<p class="mut">✓ كل الأصناف معروفة.</p>'}
@@ -604,9 +604,9 @@ A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').fo
     if(!Object.keys(pr).length){const x=all.find(x=>x.p===n&&x.t>0);if(x)pr.U=r2(x.t/x.q)}
     const cat=FRUITS.includes(mnorm(n))?'عصيرات':'خلطات';S.cats=S.cats||[];if(!S.cats.includes(cat))S.cats.push(cat);
     const p={id:uid(),name:n,cat,prices:pr,recipe:[],est:false,cpl:null,lit:false};S.prods.push(p);S.cmap[n]=p.id;created++});
-  let total=0,nd=0,np=0,skipped=0;let lastHist=null;
+  let total=0,nd=0,np=0,skipped=0,upd=0;let lastHist=null;
   CR.files.forEach(f=>{const r=f.r;
-    if(f.daily?(S.imports||[]).some(b=>b.day===r.from):false){skipped++;return}
+    if(f.daily){const ex=(S.imports||[]).find(b=>b.day===r.from);if(ex){if(!(ex.orders>0)){ex.orders=r.items.reduce((a,x)=>a+(S.cmap[x.p]===''||!(x.t>0)?0:x.q),0);if(!ex.pay||!Object.keys(ex.pay).length)ex.pay=r.pay;upd++}else skipped++;return}}
     const agg={};let ft=0;
     r.items.forEach(x=>{const p=PROD(S.cmap[x.p]);if(!p||!(x.t>0))return;
       const mods=x.mod.length?x.mod:[['',1]];const unit1=x.t/(x.q*mods.reduce((a,m)=>a+m[1],0));
@@ -621,7 +621,7 @@ A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').fo
       S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay,orders:r.items.reduce((a,x)=>a+(S.cmap[x.p]===''||!(x.t>0)?0:x.q),0)});nd++}
     else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),inc:true,t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
   if(lastHist)HSEL=lastHist.id;CR=null;closeM();
-  save('✓ '+(nd?nd+' يوم انضاف بتاريخه':'')+(np?(nd?' · ':'')+'تقرير فترة انحفظ':'')+' · '+f2(r2(total))+' ريال'+(created?' · '+created+' صنف جديد':'')+(skipped?' · تخطيت '+skipped+' مكرر':''));if(np&&!nd)go('cashier');else render()};
+  if(!nd&&!np){save(upd?'✓ تحدّث عدد الطلبات لـ '+upd+' يوم':'هذا الملف انضاف قبل');render();return}save('✓ '+(nd?nd+' يوم انضاف بتاريخه':'')+(np?(nd?' · ':'')+'تقرير فترة انحفظ':'')+' · '+f2(r2(total))+' ريال'+(created?' · '+created+' صنف جديد':'')+(skipped?' · تخطيت '+skipped+' مكرر':'')+(upd?' · تحدّث عدد الطلبات لـ '+upd+' يوم':''));if(np&&!nd)go('cashier');else render()};
 let HSEL=null;
 V.cashier=()=>{const H=(S.hist||[]).slice().sort((a,b)=>b.from-a.from);
   if(!H.length)return`<div class="card"><h3>📊 تقارير الكاشير</h3><div class="empty">ما فيه تقارير فترات للحين.<br>من <b>📥 مبيعات اليوم ← ملف من الكاشير</b> اختر ملف PDF لتقرير الكاشير.</div></div>`;
