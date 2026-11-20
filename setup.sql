@@ -89,3 +89,25 @@ drop policy if exists p_inv_upload on storage.objects;
 drop policy if exists p_inv_read   on storage.objects;
 create policy p_inv_upload on storage.objects for insert to authenticated with check (bucket_id = 'invoices' and public.my_role() in ('owner','staff'));
 create policy p_inv_read   on storage.objects for select to authenticated using (bucket_id = 'invoices' and public.my_role() = 'owner');
+
+-- ===== سجل التغييرات والنسخ اليومية =====
+create table if not exists public.audit_log(
+  id bigint generated always as identity primary key,
+  at timestamptz not null default now(),
+  user_id uuid default auth.uid(),
+  who text, summary text, details jsonb);
+create table if not exists public.state_history(
+  id bigint generated always as identity primary key,
+  at timestamptz not null default now(),
+  note text, data jsonb not null);
+alter table public.audit_log     enable row level security;
+alter table public.state_history enable row level security;
+drop policy if exists p_log_insert on public.audit_log;
+drop policy if exists p_log_read   on public.audit_log;
+create policy p_log_insert on public.audit_log for insert to authenticated with check (public.my_role() in ('owner','staff') and user_id = auth.uid());
+create policy p_log_read   on public.audit_log for select to authenticated using (public.my_role() = 'owner');
+drop policy if exists p_hist_insert on public.state_history;
+drop policy if exists p_hist_read   on public.state_history;
+create policy p_hist_insert on public.state_history for insert to authenticated with check (public.my_role() = 'owner');
+create policy p_hist_read   on public.state_history for select to authenticated using (public.my_role() = 'owner');
+grant select, insert on public.audit_log, public.state_history to authenticated;

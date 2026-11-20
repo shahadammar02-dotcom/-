@@ -173,7 +173,7 @@ let cart={},pay='شبكة';
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(TABS.find(t=>t[0]===h)&&h!==tab){tab=h;render()}});
 function go(t){tab=t;try{location.hash=t}catch(e){}render();scrollTo(0,0)}
 
-let showAll=false;if(ISSTAFF){const k=TABS.findIndex(t=>t[0]==='prefs');if(k>=0)TABS.splice(k,1)}
+let showAll=false;if(window.CLOUD&&!ISSTAFF)TABS.push(['log','📜 السجل']);if(ISSTAFF){const k=TABS.findIndex(t=>t[0]==='prefs');if(k>=0)TABS.splice(k,1)}
 function render(){settle();
   const d=new Date();
   $('#root').innerHTML=`<header><h1 style="display:flex;align-items:center;gap:8px">${S.settings.logo?`<img src="${S.settings.logo}" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;background:#fff">`:'🍊'} ${esc(S.settings.shop)}</h1><div class="sub"><span>${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}</span><span id="cloudst">${window.CLOUD?CLOUD.status:''}</span></div></header>
@@ -508,7 +508,7 @@ A.savedaily=()=>{const t=new Date(val('dd')+'T20:00').getTime()||Date.now();cons
   S.imports=S.imports||[];S.imports.push({id:bid,t,file:'ملخص يدوي '+dk(t),lines:items.length,total:r2(total)});closeM();save('✓ تم تسجيل '+f2(total));render()};
 
 /* ---------- المستشار: ملاحظات واقتراحات ---------- */
-const AREAS={home:null,turnover:['buy','cost'],sell:['sales'],needs:['stock','buy'],stock:['stock','buy'],items:['price','menu'],yield:['price','buy'],budget:['cost','buy'],reports:['sales','menu'],prefs:['data']};
+const AREAS={log:['data'],home:null,turnover:['buy','cost'],sell:['sales'],needs:['stock','buy'],stock:['stock','buy'],items:['price','menu'],yield:['price','buy'],budget:['cost','buy'],reports:['sales','menu'],prefs:['data']};
 function salesBy(days){const from=sod(Date.now())-(days-1)*DAY;const by={};inRange(S.sales,from).forEach(s=>s.items.forEach(i=>{const o=by[i.p]=by[i.p]||{q:0,rev:0,pr:0,n:(PROD(i.p)||{}).name||i.n};o.q+=i.q;o.rev+=i.price*i.q;o.pr+=(i.price-i.cost)*i.q}));return by}
 function advise(){const N=[];const add=(lv,area,t)=>N.push({lv,area,t});const T=+S.settings.target;const cur=esc(S.settings.cur);
   const m=month();const allS=S.sales;const first=allS.length?Math.min(...allS.map(s=>s.t)):0;const daysData=first?Math.ceil((Date.now()-sod(first))/DAY):0;
@@ -752,6 +752,57 @@ function applyDiff(d){let n=0;if(!d)return 0;
   return n}
 if(ISSTAFF)['savebuy','saveneedadd','savedaily','impgo','checkout','saveing','saveprod'].forEach(k=>{const f=A[k];if(!f)return;A[k]=(...a)=>{const sn=snap();const r=f(...a);Promise.resolve(r).then(()=>{const d=diffSnap(sn);if(d)CLOUD.sendAction(d).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت وحاول مرة ثانية'))});return r}});
 window.APP.applyDiff=d=>{const n=applyDiff(d);return n};window.APP.commit=()=>{save();render()};
+
+/* ---------- سجل التغييرات ---------- */
+const LCOLS={ings:'مادة',prods:'صنف',sales:'مبيعة',purchases:'شراء',expenses:'مصروف',waste:'تالف',fixed:'مصروف ثابت',imports:'استيراد مبيعات'};
+function lbl(c,o,st){st=st||S;const ig=id=>(st.ings.find(x=>x.id===id)||{}).name||'؟';
+  if(c==='ings'||c==='prods')return o.name;if(c==='sales')return (o.items||[]).map(i=>i.n+(i.q>1?' ×'+i.q:'')).join('، ')+' = '+f2(o.total);
+  if(c==='purchases')return ig(o.ing)+' '+f2(o.q)+' بـ '+f2(o.total)+(o.staff?' ('+o.staff+')':'');if(c==='expenses')return o.cat+' '+f2(o.amount);
+  if(c==='waste')return ig(o.ing)+' '+f2(o.q);if(c==='fixed')return o.name+' '+f2(o.amount);if(c==='imports')return o.file+' '+f2(o.total);return o.id}
+const IGN_ING=['stock','stockAt','cost','buyIn'];
+function diffState(a,b){if(!a||!b)return null;const out={add:{},del:{},chg:{},set:false,list:0};let any=false;
+  Object.keys(LCOLS).forEach(c=>{const A=new Map((a[c]||[]).map(x=>[x.id,x])),B=new Map((b[c]||[]).map(x=>[x.id,x]));
+    const ad=[...B.values()].filter(x=>!A.has(x.id)),dl=[...A.values()].filter(x=>!B.has(x.id));let ch=[];
+    if(c==='ings'||c==='prods'||c==='fixed'||c==='expenses'){B.forEach((x,id)=>{const y=A.get(id);if(!y)return;const strip=o=>{const z={...o};if(c==='ings')IGN_ING.forEach(k=>delete z[k]);return JSON.stringify(z)};
+      let d=strip(x)!==strip(y);if(!d&&c==='ings'){const touched=(b.purchases||[]).length!==(a.purchases||[]).length||(b.sales||[]).length!==(a.sales||[]).length||(b.waste||[]).length!==(a.waste||[]).length;if(!touched&&(Math.abs((x.stock||0)-(y.stock||0))>1e-6||Math.abs((x.cost||0)-(y.cost||0))>1e-6))d=true}
+      if(d)ch.push({before:y,after:x})})}
+    if(ad.length){out.add[c]=ad.map(x=>c==='sales'&&ad.length>20?null:lbl(c,x,b)).filter(Boolean);if(c==='sales'&&ad.length>20)out.add[c]=[ad.length+' مبيعة'];any=true}
+    if(dl.length){out.del[c]=dl;any=true}if(ch.length){out.chg[c]=ch;any=true}});
+  if(JSON.stringify(a.settings)!==JSON.stringify(b.settings)||JSON.stringify(a.sizes)!==JSON.stringify(b.sizes)){out.set=true;any=true}
+  if(JSON.stringify(a.extraList||[])!==JSON.stringify(b.extraList||[])&&!Object.keys(out.add).length){out.list=1;any=true}
+  return any?out:null}
+function sumDiff(d){if(!d)return'';const p=[];Object.entries(d.add).forEach(([c,v])=>p.push('➕ '+LCOLS[c]+': '+v.slice(0,3).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
+  Object.entries(d.chg).forEach(([c,v])=>p.push('✏️ تعديل '+LCOLS[c]+': '+v.slice(0,3).map(x=>x.after.name||lbl(c,x.after)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
+  Object.entries(d.del).forEach(([c,v])=>p.push('🗑️ حذف '+LCOLS[c]+': '+v.slice(0,3).map(x=>lbl(c,x)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
+  if(d.set)p.push('⚙️ تغيير الإعدادات');if(d.list)p.push('🛒 تعديل قائمة المقاضي');return p.join(' · ').slice(0,600)}
+function sumAction(d){if(!d)return'';const p=[];const L={ings:'مادة جديدة',prods:'صنف جديد',sales:'مبيعات',purchases:'شراء',imports:'استيراد',extra:'للقائمة'};
+  Object.entries(d).forEach(([c,v])=>{if(!v||!v.length||c==='imports')return;p.push('➕ '+L[c]+': '+v.slice(0,3).map(o=>c==='extra'?(S.ings.find(i=>i.id===o.i)||{}).name:lbl(c,o)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':''))});return p.join(' · ').slice(0,600)}
+window.APP.diffState=diffState;window.APP.sumDiff=sumDiff;window.APP.sumAction=sumAction;
+let LOG=null,LOGMORE=true,SNAPS=null,LOGQ='';
+V.log=()=>{if(!window.CLOUD)return'';if(LOG===null){LOG=[];CLOUD.listLog(0).then(r=>{LOG=r;LOGMORE=r.length>=100;if(tab==='log')render()}).catch(e=>toast('ما قدرت أجيب السجل'))}
+  if(SNAPS===null){SNAPS=[];CLOUD.listSnaps().then(r=>{SNAPS=r;if(tab==='log')render()}).catch(()=>{})}
+  const q=norm(LOGQ);const rows=LOG.filter(x=>!q||norm((x.who||'')+' '+(x.summary||'')).includes(q));
+  const tm=t=>{const d=new Date(t);return dk(d.getTime()).slice(5)+' '+d.toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'})};
+  return `<div class="card"><h3>📜 سجل التغييرات <button class="btn sec sm" data-a="logcsv">⬇️ تنزيل Excel</button></h3><p class="mut" style="margin-top:0">كل تعديل وإضافة وحذف، مين سوّاه ومتى. هذا السجل ما ينمسح، حتى منك.</p>
+   <input id="logq" placeholder="🔍 دوّر (اسم، مادة، حذف…)" value="${esc(LOGQ)}" style="margin-bottom:8px">
+   ${rows.length?rows.map(x=>{const del=x.details&&x.details.del||{};const nd=Object.values(del).reduce((a,v)=>a+v.length,0);return `<div style="border-bottom:1px solid var(--line);padding:9px 0"><div class="row"><b style="font-size:13px">${esc(x.who||'')}</b><span class="mut">${tm(x.at)}</span></div><div style="font-size:14px;margin-top:3px">${esc(x.summary||'')}</div>
+     ${nd?`<details style="margin-top:4px"><summary class="mut" style="cursor:pointer">المحذوف (${nd}) — تقدر ترجّعه</summary>${Object.entries(del).map(([c,v])=>v.map((o,k)=>`<div class="row" style="margin-top:4px"><span style="font-size:13px">${LCOLS[c]}: ${esc(lbl(c,o))}</span><span class="sp"></span><button class="btn ghost sm" data-a="logrestore" data-id="${x.id}|${c}|${k}">↩️ رجّعه</button></div>`).join('')).join('')}</details>`:''}</div>`}).join(''):'<div class="empty">ما فيه تغييرات مسجلة لسه</div>'}
+   ${LOGMORE&&LOG.length?'<button class="btn ghost full" style="margin-top:10px" data-a="logmore">عرض أقدم</button>':''}</div>
+  <div class="card"><h3>📦 نسخ يومية كاملة</h3><p class="mut" style="margin-top:0">النظام ياخذ نسخة كاملة من كل شي مرة باليوم، وقبل أي استرجاع.</p>
+   ${SNAPS.length?`<table>${SNAPS.map(n=>`<tr><td>${tm(n.at)}</td><td class="mut">${esc(n.note||'')}</td><td><button class="btn ghost sm" data-a="snapdl" data-id="${n.id}">⬇️</button> <button class="btn ghost sm" data-a="snaprestore" data-id="${n.id}">استرجاع</button></td></tr>`).join('')}</table>`:'<p class="mut">بتطلع هنا أول نسخة بعد أول حفظ.</p>'}
+   <button class="btn sec full" style="margin-top:10px" data-a="fulldl">⬇️ تنزيل نسخة كاملة الحين</button></div>`};
+document.addEventListener('input',e=>{if(e.target.id==='logq'){LOGQ=e.target.value;const p=e.target.selectionStart;render();const i=$('#logq');if(i){i.focus();try{i.setSelectionRange(p,p)}catch(_){}}}});
+function dl(name,text,type){const b=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+A.logmore=async()=>{try{const r=await CLOUD.listLog(LOG.length);LOG=LOG.concat(r);LOGMORE=r.length>=100;render()}catch(e){toast('ما قدرت')}};
+A.logcsv=async()=>{toast('جاري التجهيز…');let all=[];try{for(let off=0;off<20000;off+=1000){const r=await CLOUD.listLog(off,1000);all=all.concat(r);if(r.length<1000)break}}catch(e){return toast('ما قدرت أنزّل السجل')}
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const csv='﻿'+['التاريخ,الوقت,مين,التغيير'].concat(all.map(x=>{const d=new Date(x.at);return [dk(d.getTime()),d.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}),x.who,x.summary].map(q).join(',')})).join('\n');dl('سجل-نكهة-الطبيبين-'+dk(Date.now())+'.csv',csv,'text/csv;charset=utf-8')};
+A.fulldl=()=>dl('نسخة-نكهة-الطبيبين-'+dk(Date.now())+'.json',JSON.stringify(S),'application/json');
+A.snapdl=async id=>{try{const d=await CLOUD.snapData(id);dl('نسخة-'+id+'.json',JSON.stringify(d),'application/json')}catch(e){toast('ما قدرت')}};
+A.snaprestore=id=>ask('ترجع كل النظام لهذي النسخة؟ (بناخذ نسخة من الوضع الحالي قبلها)',async()=>{try{await CLOUD.snapshot('قبل الاسترجاع',S);const d=await CLOUD.snapData(id);if(!d||!d.ings)throw 0;S=d;save('✓ تم الاسترجاع');SNAPS=null;render()}catch(e){toast('ما قدرت أسترجع')}});
+A.logrestore=k=>{const [lid,c,idx]=k.split('|');const row=LOG.find(x=>String(x.id)===lid);const o=row&&row.details&&row.details.del&&row.details.del[c]&&row.details.del[c][+idx];if(!o)return;
+  S[c]=S[c]||[];if(S[c].some(x=>x.id===o.id))return toast('موجود أصلاً');S[c].push(JSON.parse(JSON.stringify(o)));
+  if(c==='sales')(o.items||[]).forEach(it=>it.s&&deduct(it.p,it.s,it.q,1));if(c==='purchases'){const i=ING(o.ing);if(i)i.stock=r2(i.stock+o.q)}if(c==='waste'){const i=ING(o.ing);if(i)i.stock=r2(i.stock-o.q)}
+  if(c==='prods'){S.cats=S.cats||[];if(!S.cats.includes(o.cat))S.cats.push(o.cat)}save('↩️ رجع: '+lbl(c,o));render()};
 
 /* ---------- تذكّر مكانك في الصفحة ---------- */
 const UIK='juice_ui_v1';let restoreY=null;
