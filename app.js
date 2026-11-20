@@ -167,7 +167,7 @@ function month(){const ms=mStart();const s=salesSum(inRange(S.sales,ms));const p
   const dayN=new Date().getDate();const fixedSoFar=fixedTotal()*dayN/dim();return{...s,pur,wst,exp,fixedSoFar,net:s.rev-s.cogs-wst-fixedSoFar,dayN}}
 
 /* ---------- الواجهة ---------- */
-const TABS=[['home','الرئيسية'],['sell','البيع'],['needs','الاحتياج'],['stock','المخزون والمشتريات'],['turnover','معدل الشراء'],['items','الأصناف والتسعير'],['yield','حاسبة العصير'],['budget','المصاريف'],['prefs','الإعدادات']];
+const TABS=[['home','الرئيسية'],['sell','المنتجات'],['needs','الاحتياج'],['stock','المخزون والمشتريات'],['turnover','معدل الشراء'],['items','الأصناف والتسعير'],['yield','حاسبة العصير'],['budget','المصاريف'],['prefs','الإعدادات']];
 let tab=(location.hash||'').slice(1);if(!TABS.find(t=>t[0]===tab))tab='home';
 let cart={},pay='شبكة';
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(TABS.find(t=>t[0]===h)&&h!==tab){tab=h;render()}});
@@ -218,7 +218,7 @@ V.sell=()=>{const items=Object.entries(cart).filter(([,q])=>q>0);const kp=k=>{co
   const imps=(S.imports||[]).slice().reverse().slice(0,5);
   const pcats=allCats().filter(c=>S.prods.some(p=>p.cat===c&&sizesOf(p).length));if(pcat!=='الكل'&&!pcats.includes(pcat))pcat='الكل';
   const pshow=S.prods.filter(p=>sizesOf(p).length&&(pcat==='الكل'||p.cat===pcat));
-  const prodsCard=`<div class="card"><h3>المنتجات <span class="mut">${pshow.length} صنف</span></h3><div class="row" style="overflow-x:auto;flex-wrap:nowrap;margin-bottom:10px;padding-bottom:4px">${['الكل',...pcats].map(c=>`<button class="btn sm ${c===pcat?'':'ghost'}" style="flex:0 0 auto" data-a="pcat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div><div class="grid">${pshow.map(p=>`<button class="pbtn" data-a="pinfo" data-id="${p.id}"><b>${esc(p.name)}</b></button>`).join('')}</div></div>`;
+  const prodsCard=`<div class="card"><h3>المنتجات <span class="mut">${pshow.length} صنف</span></h3><div class="row" style="overflow-x:auto;flex-wrap:nowrap;margin-bottom:10px;padding-bottom:4px">${['الكل',...pcats].map(c=>{const n=S.prods.filter(p=>sizesOf(p).length&&(c==='الكل'||p.cat===c)).length;return `<button class="btn sm ${c===pcat?'':'ghost'}" style="flex:0 0 auto" data-a="pcat" data-id="${esc(c)}">${esc(c)} <span style="font-size:11px;font-weight:500;opacity:.75">${n}</span></button>`}).join('')}</div><div class="grid">${pshow.map(p=>`<button class="pbtn" data-a="pinfo" data-id="${p.id}"><b>${esc(p.name)}</b></button>`).join('')}</div></div>`;
   return `${prodsCard}<div class="card"><h3>مبيعات اليوم <span><span class="mut">${today.length} طلب · ${C(today.reduce((a,x)=>a+x.total,0))}</span> <button class="btn sm" data-a="salesin">📥 إضافة</button></span></h3>${today.length?`<table><tr><th>الوقت</th><th>الأصناف</th><th>الدفع</th><th>المبلغ</th><th></th></tr>${today.slice(0,40).map(s=>`<tr><td class="mut">${new Date(s.t).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'})}</td><td>${s.items.map(i=>esc(i.n)+(i.q>1?' ×'+i.q:'')).join('، ')}</td><td class="mut">${s.pay}</td><td>${f2(s.total)}</td><td><button class="btn ghost sm" data-a="delsale" data-id="${s.id}">✕</button></td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مبيعات اليوم</div>'}</div>`};
 
 const inPack=i=>i&&i.buyIn==='pack'&&+i.packSize>0;
