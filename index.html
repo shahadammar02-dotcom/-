@@ -96,7 +96,7 @@ function loginView(ownerExists,msg){
 }
 async function boot(){
   try{const {data:{session}}=await sb.auth.getSession();
-  if(!session){const oe=await sb.rpc('owner_exists');return loginView(oe.error?true:!!oe.data)}
+  if(!session){const oe=await sb.rpc('owner_exists');if(oe.error){$('#root').innerHTML='<div class="lg"><img src="logo.jpg"><div class="card"><h2>قاعدة البيانات ما تجهزت</h2><p class="mut">افتح Supabase ← SQL Editor ← New query، والصق ملف <b>setup.sql</b> كامل واضغط <b>Run</b>. وبعدين: Authentication ← Email ← أوقف <b>Confirm email</b>. وارجع حدّث هالصفحة.</p><div class="mut" dir="ltr" style="font-size:11px">'+esc(oe.error.message||'')+'</div><button class="btn full" style="margin-top:12px" onclick="location.reload()">تحديث</button></div></div>';return}return loginView(!!oe.data)}
   const uid=session.user.id;const pr=await sb.from('profiles').select('name,role').eq('user_id',uid).maybeSingle();
   const role=pr.data&&pr.data.role;
   if(role==='staff')CLOUD.role='staff';
