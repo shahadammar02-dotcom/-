@@ -451,17 +451,17 @@ A.delwaste=id=>{const w=S.waste.find(x=>x.id===id);const i=w&&ING(w.ing);if(i)i.
 let IU='unit';
 function stLevel(i,U){if(!(i.stock>0))return't-b';const now=Date.now();if(+i.until>0){if(now>=i.until)return't-b';if(i.until-now<=DAY)return't-w'}const d=(U||usage())[i.id]||0;if(d>0&&i.stock/d<=1)return't-w';if(i.min>0&&i.stock<=i.min)return't-w';return't-ok'}
 let QB={};
-A.qbuy=id=>{const i=ING(id);if(!i)return;const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit;const ps=+i.packSize>0;QB={id,k:i.unit==='كرتون'||inPack(i)?'pack':'unit'};
-  const html=()=>`<h3>🛒 اشتريت: ${esc(i.name)}</h3><div class="row" id="qb_t">${(i.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',i.pack||'كرتون']]).map(([k,l])=>`<button type="button" class="btn sp ${k===QB.k?'':'ghost'}" data-a="qbk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
+A.qbuy=(id,o)=>{const i=ING(id);if(!i)return;const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit;const ps=+i.packSize>0;QB={id,k:i.unit==='كرتون'||inPack(i)?'pack':'unit',...(o||{})};
+  const html=()=>`<h3>🛒 اشتريت: ${esc(i.name)}</h3>${QB.expId?`<p class="mut">📦 اكتب الكمية عشان تنضاف للمخزون (يوم ${dk(QB.t)}). لو ضغطت إلغاء تبقى مصروف بس.</p>`:''}<div class="row" id="qb_t">${(i.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',i.pack||'كرتون']]).map(([k,l])=>`<button type="button" class="btn sp ${k===QB.k?'':'ghost'}" data-a="qbk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
    <label>كم ${esc(QB.k==='pack'?(i.pack||'كرتون'):uN)}؟</label><input id="qb_n" type="number" inputmode="decimal" placeholder="0">
    ${QB.k==='pack'&&!ps&&i.unit!=='كرتون'?`<label>ال${esc(i.pack||'كرتون')} فيه كم ${esc(uN)}؟</label><input id="qb_ps" type="number" inputmode="decimal" placeholder="مثلاً 10">`:''}
    <label>السعر (المبلغ كامل)</label><input id="qb_v" type="number" inputmode="decimal" placeholder="0">${foot('saveqbuy')}`;
-  QB.html=html;openM(html());setTimeout(()=>{const e=$('#qb_n');if(e)e.focus()},50)};
+  QB.html=html;openM(html());if(QB.price)$('#qb_v').value=QB.price;setTimeout(()=>{const e=$('#qb_n');if(e)e.focus()},50)};
 A.qbk=k=>{if(QB.k===k)return;const n=$('#qb_n').value,v=$('#qb_v').value;QB.k=k;openM(QB.html());$('#qb_n').value=n;$('#qb_v').value=v};
 A.saveqbuy=()=>{const i=ING(QB.id);if(!i)return;const n=num('qb_n'),t=num('qb_v');if(!(n>0))return toast('اكتب الكمية');if(t<0)return toast('اكتب السعر');
   let q=n;if(QB.k==='pack'&&i.unit!=='كرتون'){let ps=+i.packSize;if(!(ps>0)){ps=num('qb_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');i.packSize=ps;if(!i.pack)i.pack='كرتون'}q=n*ps;i.buyIn='pack'}else if(QB.k==='unit')i.buyIn='unit';
   const old=Math.max(0,i.stock);if(t>0)i.cost=r2((old*(+i.cost||0)+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;if(+i.cv>0){i.until=sod(Date.now())+i.cv*DAY;i.cvQ=i.stock}else i.until=0;
-  S.purchases.push({id:uid(),t:Date.now(),ing:i.id,q,total:t,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
+  S.purchases.push({id:uid(),t:QB.t||Date.now(),ing:i.id,q,total:t,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});if(QB.expId)S.expenses=(S.expenses||[]).filter(e=>e.id!==QB.expId);S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:0,cat:stcat&&stcat!=='الكل'?stcat:'أخرى'};IU=(i.buyIn==='pack'&&+i.packSize>0)?'pack':'unit';
   const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit,pN=i.pack||'كرتون';
   openM(`<h3>${id?'تعديل مادة':'مادة جديدة'}</h3><label>الاسم</label><input id="i_n" value="${esc(i.name)}">
@@ -878,11 +878,13 @@ A.dexp=()=>{const [a,b]=pRange(hp,hd);const L=outL(a,b);const day=dk(hp==='day'?
    ${ISSTAFF?'':`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="dx_r" style="width:auto"> 🔁 يتكرر كل يوم (مثل مصروف العمال)</label>`}
    <button class="btn full" style="margin-top:10px" data-a="savedexp">＋ إضافة</button></div>
    ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).length?`<div class="mut" style="margin:4px 0 8px">🔁 يتكرر كل يوم: ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).map(r=>`<b>${esc(r.name)} ${f2(r.amount)}</b>${ISSTAFF?'':` <button class="btn ghost sm" style="padding:1px 7px" data-a="stoprecur" data-id="${r.id}">إيقاف</button>`}`).join(' · ')}</div>`:''}
-   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'&&!ISSTAFF?`<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
+   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'&&!ISSTAFF?`${ingByName(x.n)?`<button class="btn sec sm" data-a="e2p" data-id="${x.id}">📦 للمخزون</button> `:''}<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
    <div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);setTimeout(()=>{const e=$('#dx_n');if(e)e.focus()},50)};
 A.savedexp=()=>{const n=val('dx_n'),v=num('dx_v');if(!n||!(v>0))return toast('اكتب الاسم والسعر');const d=val('dx_d')||dk(Date.now());
   const rc=$('#dx_r');if(rc&&rc.checked){S.recur=S.recur||[];S.recur.push({id:uid(),name:n,amount:v,from:new Date(d+'T00:00').getTime(),to:0});save('✓ انضاف كمصروف يومي');render();A.dexp();return}const t=d===dk(Date.now())?Date.now():new Date(d+'T12:00').getTime();
-  S.expenses=S.expenses||[];S.expenses.push({id:uid(),t,cat:n,amount:v,note:'',daily:true,staff:window.CLOUD?CLOUD.userName:''});save('✓ انضاف');render();A.dexp()};
+  S.expenses=S.expenses||[];const ne={id:uid(),t,cat:n,amount:v,note:'',daily:true,staff:window.CLOUD?CLOUD.userName:''};S.expenses.push(ne);save('✓ انضاف');render();const mi=!ISSTAFF&&ingByName(n);if(mi){A.qbuy(mi.id,{price:v,t,expId:ne.id})}else A.dexp()};
+const ingByName=n=>{const k=mnorm(n||'');return S.ings.find(i=>mnorm(i.name)===k)};
+A.e2p=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;const i=ingByName(e.cat);if(!i)return;A.qbuy(i.id,{price:e.amount,t:e.t,expId:e.id})};
 A.stoprecur=id=>ask('إيقاف هذا المصروف اليومي من بكرة؟ (الأيام اللي فاتت تبقى محسوبة)',()=>{const r=(S.recur||[]).find(x=>x.id===id);if(r)r.to=sod(Date.now())+DAY;save('✓ توقف');render()});
 A.deldexp=id=>{S.expenses=(S.expenses||[]).filter(x=>x.id!==id);save('انحذف');render();A.dexp()};
 function homeNotes(){const N=advise().filter(n=>n.lv==='b').slice(0,3);return N.length?`<div class="card">${N.map(n=>`<div class="alert a-b" style="margin:4px 0">🔴 ${n.t}</div>`).join('')}</div>`:''}
@@ -941,7 +943,7 @@ window.APP={getS:()=>S,render:()=>render(),toast:m=>toast(m),
 let BIMG=null;
 document.addEventListener('change',async e=>{if(e.target.id!=='b_img')return;const f=e.target.files&&e.target.files[0];if(!f||!window.CLOUD)return;BIMG={busy:true};const st=$('#b_imgst');if(st)st.textContent='⏳ جاري رفع الصورة…';
   try{BIMG={busy:false,path:await CLOUD.uploadImg(f)};if(st)st.textContent='✓ انرفعت الصورة'}catch(err){BIMG=null;if(st)st.textContent='⚠️ ما انرفعت الصورة'}});
-const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','stoprecur','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export','delhist','deldexp']);
+const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','stoprecur','e2p','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export','delhist','deldexp']);
 function blocked(a,id){if(BLOCK.has(a))return true;if((a==='ing'||a==='prod')&&id)return true;if((a==='saveing'||a==='saveprod')&&edit)return true;return false}
 function lockUI(){if(!ISSTAFF)return;document.querySelectorAll('[data-a]').forEach(b=>{if(blocked(b.dataset.a,b.dataset.id))b.remove()});
   document.querySelectorAll('.nd_cv,.tv_ev,.nd_g,.sz_n,.sz_ml,.sz_j,.sz_pk,#p_logo').forEach(i=>{i.disabled=true});
