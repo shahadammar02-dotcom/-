@@ -141,6 +141,7 @@ if((S.v||0)<21){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/
     (S.sales||[]).forEach(sl=>sl.items.forEach(it=>{if(it.p===old.id){it.p=tp.id;it.n=tp.name+(it.s&&it.s!=='U'?' '+(((S.sizes||[]).find(z=>z.id===it.s)||{}).name||''):'')}}));
     (S.hist||[]).forEach(h=>h.items.forEach(o=>{if(o.p===old.id)o.p=tp.id}));S.prods=S.prods.filter(p=>p!==old);S.cmap=S.cmap||{};S.cmap[c]=tp.id});S.v=21}
 if((S.v||0)<22){S.ings.forEach(i=>{if(String(i.name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,' ').trim()==='تفاح احمر')i.cat='فواكه وخضار'});S.v=22}
+if((S.v||0)<23){S.ings.forEach(i=>{if(!(+i.cv>0)||!(+i.until>0)||!(+i.drate>0))return;const lp=S.purchases.filter(p=>p.ing===i.id&&p.t>=i.until-(i.cv+2)*864e5).sort((a,b)=>b.t-a.t)[0];if(!lp)return;const d=new Date(lp.t);d.setHours(0,0,0,0);i.until=d.getTime()+Math.max(0,+i.stock||0)/i.drate*864e5});S.v=23}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
@@ -422,7 +423,7 @@ A.buy=id=>{const n=id?(needList().list.find(x=>x.i.id===id)||needs().find(x=>x.i
 function pkw(id){const i=ING(id);if(!i||!i.packSize)return'';return `<div class="two"><div><label>أو عدد ال${esc(i.pack)} (${f2(i.packSize)} ${esc(i.unit)})</label><input id="b_pn" type="number" step="any"></div><div><label>سعر ال${esc(i.pack)} الواحد</label><input id="b_pp" type="number" step="any" value="${r2(i.cost*i.packSize)}"></div></div>`}
 document.addEventListener('change',e=>{if(e.target.id==='b_ing')$('#b_pkw').innerHTML=pkw(e.target.value)});
 document.addEventListener('input',e=>{if(e.target.id==='b_pn'||e.target.id==='b_pp'){const i=ING(val('b_ing'));const n=num('b_pn');if(i&&n){$('#b_q').value=r2(n*i.packSize);if(num('b_pp'))$('#b_t').value=r2(n*num('b_pp'))}}});
-A.savebuy=()=>{if(BIMG&&BIMG.busy)return toast('لحظة، الصورة تترفع…');const i=ING(val('b_ing')),q=num('b_q'),t=num('b_t');if(!i||q<=0||t<0)return toast('أدخل الكمية والمبلغ');const old=Math.max(0,i.stock);i.cost=r2((old*i.cost+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;if(+i.cv>0){i.until=sod(Date.now())+i.cv*DAY;i.cvQ=i.stock}else i.until=0;const bd=val('b_d');const bt=!bd||bd===dk(Date.now())?Date.now():new Date(bd+'T12:00').getTime();S.purchases.push({id:uid(),t:bt,ing:i.id,q,total:t,sup:val('b_s'),staff:window.CLOUD?CLOUD.userName:'',imgPath:BIMG&&BIMG.path||''});S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
+A.savebuy=()=>{if(BIMG&&BIMG.busy)return toast('لحظة، الصورة تترفع…');const i=ING(val('b_ing')),q=num('b_q'),t=num('b_t');if(!i||q<=0||t<0)return toast('أدخل الكمية والمبلغ');const old=Math.max(0,i.stock);i.cost=r2((old*i.cost+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;resetCover(i,q,Date.now());const bd=val('b_d');const bt=!bd||bd===dk(Date.now())?Date.now():new Date(bd+'T12:00').getTime();S.purchases.push({id:uid(),t:bt,ing:i.id,q,total:t,sup:val('b_s'),staff:window.CLOUD?CLOUD.userName:'',imgPath:BIMG&&BIMG.path||''});S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 let EP={};
 A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p.ing);EP={id,k:i&&(i.unit==='كرتون'||inPack(i))?'pack':'unit'};
   EP.html=(q,v,d,ing)=>{const ii=ING(ing)||i;const uN=!ii||!ii.unit||ii.unit==='كجم'?'كيلو':ii.unit;const pN=ii&&ii.pack||'كرتون';const ps=ii&&+ii.packSize>0;
@@ -441,7 +442,7 @@ A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const ni=
   const d=val('ep_d');const ch={id,ing:ni?ni.id:p.ing,q:r2(q),total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};if(EP.k==='pack'&&ni&&+ni.packSize>0)ch.ps=+ni.packSize;pEdit(ch);
   closeM();if(ISSTAFF){CLOUD.sendAction({pedit:[ch]}).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت'));render()}else{save('✓ تعدّل');render()}};
 function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(ch.ps&&ni&&!(+ni.packSize>0)){ni.packSize=ch.ps;if(!ni.pack)ni.pack='كرتون'}if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
-  p.q=ch.q;p.total=ch.total;p.ing=ni?ni.id:p.ing;p.t=ch.t;if(ch.by)p.editBy=ch.by;
+  const dq=ch.q-p.q;if(ni&&ni===oi&&+ni.drate>0&&+ni.until>0)ni.until=Math.max(sod(p.t),ni.until+dq/ni.drate*DAY);p.q=ch.q;p.total=ch.total;p.ing=ni?ni.id:p.ing;p.t=ch.t;if(ch.by)p.editBy=ch.by;
   [oi,ni].forEach(i=>{if(!i)return;const lp=S.purchases.filter(x=>x.ing===i.id&&x.q>0&&x.total>0).sort((a,b)=>b.t-a.t)[0];if(lp)i.cost=r2(lp.total/lp.q)});return 1}
 A.delpur=id=>ask('حذف هذه العملية وخصم الكمية من المخزون؟',()=>{const p=S.purchases.find(x=>x.id===id);const i=p&&ING(p.ing);if(i)i.stock=r2(i.stock-p.q);S.purchases=S.purchases.filter(x=>x.id!==id);save('تم الحذف');render()});
 A.waste=()=>openM(`<h3>🗑️ تسجيل تالف</h3><label>المادة</label><select id="w_ing">${ingOpts()}</select><label>الكمية التالفة</label><input id="w_q" type="number" step="any">${foot('savewaste')}`);
@@ -451,6 +452,10 @@ A.delwaste=id=>{const w=S.waste.find(x=>x.id===id);const i=w&&ING(w.ing);if(i)i.
 let IU='unit';
 function stLevel(i,U){if(!(i.stock>0))return't-b';const now=Date.now();if(+i.until>0){if(now>=i.until)return't-b';if(i.until-now<=DAY)return't-w'}const d=(U||usage())[i.id]||0;if(d>0&&i.stock/d<=1)return't-w';if(i.min>0&&i.stock<=i.min)return't-w';return't-ok'}
 let QB={};
+// بعد الشراء: كم يوم يكفي = (الباقي المتوقع + اللي انشرى) ÷ الاستهلاك اليومي
+function resetCover(i,q,t){if(!(+i.cv>0)){i.until=0;return}const d0=sod(t);let r=+i.drate||0;
+  if(!(r>0)){i.until=d0+i.cv*DAY;i.cvQ=i.stock;return}
+  const left=+i.until>d0?(i.until-d0)/DAY*r:0;i.until=d0+Math.max(0,left+q)/r*DAY;i.cvQ=i.stock}
 A.qbuy=(id,o)=>{const i=ING(id);if(!i)return;const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit;const ps=+i.packSize>0;QB={id,k:i.unit==='كرتون'||inPack(i)?'pack':'unit',...(o||{})};
   const html=()=>`<h3>🛒 اشتريت: ${esc(i.name)}</h3>${QB.expId?`<p class="mut">📦 اكتب الكمية عشان تنضاف للمخزون (يوم ${dk(QB.t)}). لو ضغطت إلغاء تبقى مصروف بس.</p>`:''}<div class="row" id="qb_t">${(i.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',i.pack||'كرتون']]).map(([k,l])=>`<button type="button" class="btn sp ${k===QB.k?'':'ghost'}" data-a="qbk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
    <label>كم ${esc(QB.k==='pack'?(i.pack||'كرتون'):uN)}؟</label><input id="qb_n" type="number" inputmode="decimal" placeholder="0">
@@ -460,7 +465,7 @@ A.qbuy=(id,o)=>{const i=ING(id);if(!i)return;const uN=!i.unit||i.unit==='كجم'
 A.qbk=k=>{if(QB.k===k)return;const n=$('#qb_n').value,v=$('#qb_v').value;QB.k=k;openM(QB.html());$('#qb_n').value=n;$('#qb_v').value=v};
 A.saveqbuy=()=>{const i=ING(QB.id);if(!i)return;const n=num('qb_n'),t=num('qb_v');if(!(n>0))return toast('اكتب الكمية');if(t<0)return toast('اكتب السعر');
   let q=n;if(QB.k==='pack'&&i.unit!=='كرتون'){let ps=+i.packSize;if(!(ps>0)){ps=num('qb_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');i.packSize=ps;if(!i.pack)i.pack='كرتون'}q=n*ps;i.buyIn='pack'}else if(QB.k==='unit')i.buyIn='unit';
-  const old=Math.max(0,i.stock);if(t>0)i.cost=r2((old*(+i.cost||0)+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;if(+i.cv>0){i.until=sod(Date.now())+i.cv*DAY;i.cvQ=i.stock}else i.until=0;
+  const old=Math.max(0,i.stock);if(t>0)i.cost=r2((old*(+i.cost||0)+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;resetCover(i,q,Date.now());
   S.purchases.push({id:uid(),t:QB.t||Date.now(),ing:i.id,q,total:t,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});if(QB.expId)S.expenses=(S.expenses||[]).filter(e=>e.id!==QB.expId);S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:0,cat:stcat&&stcat!=='الكل'?stcat:'أخرى'};IU=(i.buyIn==='pack'&&+i.packSize>0)?'pack':'unit';
   const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit,pN=i.pack||'كرتون';
@@ -956,7 +961,7 @@ function applyDiff(d){let n=0;if(!d)return 0;
   (d.ings||[]).forEach(i=>{if(!ING(i.id)){S.ings.push(i);n++}});
   (d.prods||[]).forEach(p=>{if(!PROD(p.id)){S.prods.push(p);S.cats=S.cats||[];if(!S.cats.includes(p.cat))S.cats.push(p.cat);n++}});
   const sI=new Set(S.sales.map(x=>x.id));(d.sales||[]).forEach(x=>{if(sI.has(x.id))return;S.sales.push(x);x.items.forEach(it=>it.s&&deduct(it.p,it.s,it.q,1));n++});
-  const pI=new Set(S.purchases.map(x=>x.id));(d.purchases||[]).forEach(p=>{if(pI.has(p.id))return;const i=ING(p.ing);if(i){const old=Math.max(0,i.stock);if(p.total>0)i.cost=r2((old*i.cost+p.total)/(old+p.q))||i.cost;i.stock=r2(i.stock+p.q);i.stockAt=Date.now()}S.purchases.push(p);S.extraList=(S.extraList||[]).filter(e=>e.i!==p.ing);n++});
+  const pI=new Set(S.purchases.map(x=>x.id));(d.purchases||[]).forEach(p=>{if(pI.has(p.id))return;const i=ING(p.ing);if(i){const old=Math.max(0,i.stock);if(p.total>0)i.cost=r2((old*i.cost+p.total)/(old+p.q))||i.cost;i.stock=r2(i.stock+p.q);i.stockAt=Date.now();i.trk=true;resetCover(i,p.q,p.t||Date.now())}S.purchases.push(p);S.extraList=(S.extraList||[]).filter(e=>e.i!==p.ing);n++});
   (d.imports||[]).forEach(b=>{S.imports=S.imports||[];if(!S.imports.find(x=>x.id===b.id))S.imports.push(b)});
   (d.extra||[]).forEach(e=>{S.extraList=S.extraList||[];if(S.extraList.find(x=>x.i===e.i&&x.t===e.t))return;if(S.purchases.some(p=>p.ing===e.i&&p.t>=e.t))return;S.extraList=S.extraList.filter(x=>x.i!==e.i);S.extraList.push(e);n++});
   (d.expenses||[]).forEach(e=>{S.expenses=S.expenses||[];if(!S.expenses.find(x=>x.id===e.id)){S.expenses.push(e);n++}});
