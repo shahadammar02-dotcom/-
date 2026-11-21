@@ -423,17 +423,24 @@ function pkw(id){const i=ING(id);if(!i||!i.packSize)return'';return `<div class=
 document.addEventListener('change',e=>{if(e.target.id==='b_ing')$('#b_pkw').innerHTML=pkw(e.target.value)});
 document.addEventListener('input',e=>{if(e.target.id==='b_pn'||e.target.id==='b_pp'){const i=ING(val('b_ing'));const n=num('b_pn');if(i&&n){$('#b_q').value=r2(n*i.packSize);if(num('b_pp'))$('#b_t').value=r2(n*num('b_pp'))}}});
 A.savebuy=()=>{if(BIMG&&BIMG.busy)return toast('لحظة، الصورة تترفع…');const i=ING(val('b_ing')),q=num('b_q'),t=num('b_t');if(!i||q<=0||t<0)return toast('أدخل الكمية والمبلغ');const old=Math.max(0,i.stock);i.cost=r2((old*i.cost+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;if(+i.cv>0){i.until=sod(Date.now())+i.cv*DAY;i.cvQ=i.stock}else i.until=0;const bd=val('b_d');const bt=!bd||bd===dk(Date.now())?Date.now():new Date(bd+'T12:00').getTime();S.purchases.push({id:uid(),t:bt,ing:i.id,q,total:t,sup:val('b_s'),staff:window.CLOUD?CLOUD.userName:'',imgPath:BIMG&&BIMG.path||''});S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
-A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p.ing);const pk=i&&inPack(i);const uN=!i||!i.unit||i.unit==='كجم'?'كيلو':i.unit;
-  openM(`<h3>✏️ تعديل شراء: ${esc(i?i.name:'—')}</h3>
-   <label>المادة</label><select id="ep_i">${S.ings.map(x=>`<option value="${x.id}" ${x.id===p.ing?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
-   <label>كم ${esc(pk?(i.pack||'كرتون'):uN)}؟</label><input id="ep_q" type="number" inputmode="decimal" value="${pk?r2(p.q/i.packSize):r2(p.q)}">
-   <label>السعر (المبلغ كامل)</label><input id="ep_v" type="number" inputmode="decimal" value="${r2(+p.total||0)}">
-   <label>التاريخ</label><input id="ep_d" type="date" value="${dk(p.t)}" max="${dk(Date.now())}">
-   <div class="row" style="margin-top:16px">${ISSTAFF?'':`<button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button>`}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`)};
-A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const oi=ING(p.ing);const pk=oi&&inPack(oi);let q=num('ep_q');const v=num('ep_v');if(!(q>0))return toast('اكتب الكمية');if(pk)q=q*oi.packSize;
-  const d=val('ep_d');const ch={id,ing:val('ep_i')||p.ing,q:r2(q),total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};pEdit(ch);
+let EP={};
+A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p.ing);EP={id,k:i&&(i.unit==='كرتون'||inPack(i))?'pack':'unit'};
+  EP.html=(q,v,d,ing)=>{const ii=ING(ing)||i;const uN=!ii||!ii.unit||ii.unit==='كجم'?'كيلو':ii.unit;const pN=ii&&ii.pack||'كرتون';const ps=ii&&+ii.packSize>0;
+   return `<h3>✏️ تعديل شراء: ${esc(i?i.name:'—')}</h3>
+   <label>المادة</label><select id="ep_i">${S.ings.map(x=>`<option value="${x.id}" ${x.id===ing?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+   <div class="row" style="margin-top:12px">${(ii&&ii.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',pN]]).map(([k,l])=>`<button type="button" class="btn sp ${k===EP.k?'':'ghost'}" data-a="epk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
+   <label>كم ${esc(EP.k==='pack'?pN:uN)}؟</label><input id="ep_q" type="number" inputmode="decimal" value="${q}">
+   ${EP.k==='pack'&&!ps&&ii&&ii.unit!=='كرتون'?`<label>ال${esc(pN)} فيه كم ${esc(uN)}؟</label><input id="ep_ps" type="number" inputmode="decimal" placeholder="مثلاً 10">`:''}
+   <label>السعر (المبلغ كامل)</label><input id="ep_v" type="number" inputmode="decimal" value="${v}">
+   <label>التاريخ</label><input id="ep_d" type="date" value="${d}" max="${dk(Date.now())}">
+   <div class="row" style="margin-top:16px">${ISSTAFF?'':`<button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button>`}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`};
+  const q0=EP.k==='pack'&&i&&+i.packSize>0?r2(p.q/i.packSize):r2(p.q);openM(EP.html(q0,r2(+p.total||0),dk(p.t),p.ing))};
+A.epk=k=>{if(EP.k===k)return;const ing=val('ep_i'),ii=ING(ing);let q=num('ep_q');const ps=ii&&+ii.packSize>0?+ii.packSize:0;if(ps&&ii.unit!=='كرتون'&&q>0)q=k==='pack'?r2(q/ps):r2(q*ps);EP.k=k;openM(EP.html(q||'',$('#ep_v').value,$('#ep_d').value,ing))};
+A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const ni=ING(val('ep_i'))||ING(p.ing);let q=num('ep_q');const v=num('ep_v');if(!(q>0))return toast('اكتب الكمية');
+  if(EP.k==='pack'&&ni&&ni.unit!=='كرتون'){let ps=+ni.packSize;if(!(ps>0)){ps=num('ep_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');ni.packSize=ps;if(!ni.pack)ni.pack='كرتون'}q=q*ps}
+  const d=val('ep_d');const ch={id,ing:ni?ni.id:p.ing,q:r2(q),total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};if(EP.k==='pack'&&ni&&+ni.packSize>0)ch.ps=+ni.packSize;pEdit(ch);
   closeM();if(ISSTAFF){CLOUD.sendAction({pedit:[ch]}).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت'));render()}else{save('✓ تعدّل');render()}};
-function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
+function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(ch.ps&&ni&&!(+ni.packSize>0)){ni.packSize=ch.ps;if(!ni.pack)ni.pack='كرتون'}if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
   p.q=ch.q;p.total=ch.total;p.ing=ni?ni.id:p.ing;p.t=ch.t;if(ch.by)p.editBy=ch.by;
   [oi,ni].forEach(i=>{if(!i)return;const lp=S.purchases.filter(x=>x.ing===i.id&&x.q>0&&x.total>0).sort((a,b)=>b.t-a.t)[0];if(lp)i.cost=r2(lp.total/lp.q)});return 1}
 A.delpur=id=>ask('حذف هذه العملية وخصم الكمية من المخزون؟',()=>{const p=S.purchases.find(x=>x.id===id);const i=p&&ING(p.ing);if(i)i.stock=r2(i.stock-p.q);S.purchases=S.purchases.filter(x=>x.id!==id);save('تم الحذف');render()});
