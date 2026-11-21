@@ -274,7 +274,7 @@ V.stock=()=>{const pur=S.purchases.slice().sort((a,b)=>b.t-a.t).slice(0,25);cons
   ${(()=>{const U=usage();return `<table><tr><th>المادة</th><th>المخزون الحالي</th><th></th></tr>${S.ings.filter(i=>stcat==='الكل'||(i.cat||'أخرى')===stcat).map(i=>{const lv=stLevel(i,U);return `<tr><td>${esc(i.name)}</td><td><span class="tag ${lv}" style="font-size:15px;min-width:44px;text-align:center">${f2(inPack(i)?r2(i.stock/i.packSize):r2(i.stock))}</span></td><td style="white-space:nowrap"><button class="btn sec sm" data-a="qbuy" data-id="${i.id}">اشتريت</button> <button class="btn ghost sm" data-a="ing" data-id="${i.id}">✏️</button></td></tr>`}).join('')}</table>
   <p class="mut" style="margin-top:8px"><span class="tag t-b">أحمر</span> خلص · <span class="tag t-w">برتقالي</span> باقي يوم أو أقل</p>`})()}
   </div>
-  <div class="card"><h3>آخر المشتريات</h3>${pur.length?`<table><tr><th>التاريخ</th><th>المادة</th><th>الكمية</th><th>المبلغ</th><th>المورد</th><th></th></tr>${pur.map(p=>{const i=ING(p.ing);return `<tr><td class="mut">${dk(p.t).slice(5)}</td><td>${esc(i?i.name:'—')}</td><td>${f2(p.q)} ${esc(i?i.unit:'')}</td><td>${f2(p.total)}</td><td class="mut">${esc(p.sup||'')}${p.staff?' · '+esc(p.staff):''}${p.img?` <a href="${esc(p.img)}" target="_blank" rel="noopener">📷</a>`:''}${p.imgPath?` <a href="#" data-a="img" data-id="${esc(p.imgPath)}">📷</a>`:''}</td><td style="white-space:nowrap">${ISSTAFF?'':`<button class="btn ghost sm" data-a="editpur" data-id="${p.id}">✏️</button> <button class="btn ghost sm" data-a="delpur" data-id="${p.id}">✕</button>`}</td></tr>`}).join('')}</table>`:'<div class="empty">لا يوجد</div>'}</div>
+  <div class="card"><h3>آخر المشتريات</h3>${pur.length?`<table><tr><th>التاريخ</th><th>المادة</th><th>الكمية</th><th>المبلغ</th><th>المورد</th><th></th></tr>${pur.map(p=>{const i=ING(p.ing);return `<tr><td class="mut">${dk(p.t).slice(5)}</td><td>${esc(i?i.name:'—')}</td><td>${f2(p.q)} ${esc(i?i.unit:'')}</td><td>${f2(p.total)}</td><td class="mut">${esc(p.sup||'')}${p.staff?' · '+esc(p.staff):''}${p.img?` <a href="${esc(p.img)}" target="_blank" rel="noopener">📷</a>`:''}${p.imgPath?` <a href="#" data-a="img" data-id="${esc(p.imgPath)}">📷</a>`:''}</td><td style="white-space:nowrap"><button class="btn ghost sm" data-a="editpur" data-id="${p.id}">✏️</button>${ISSTAFF?'':` <button class="btn ghost sm" data-a="delpur" data-id="${p.id}">✕</button>`}</td></tr>`}).join('')}</table>`:'<div class="empty">لا يوجد</div>'}</div>
   <div class="card"><h3>التالف</h3>${ws.length?`<table>${ws.map(w=>{const i=ING(w.ing);return `<tr><td class="mut">${dk(w.t).slice(5)}</td><td>${esc(i?i.name:'—')}</td><td>${f2(w.q)} ${esc(i?i.unit:'')}</td><td class="neg">${f2(w.cost)}</td><td><button class="btn ghost sm" data-a="delwaste" data-id="${w.id}">✕</button></td></tr>`}).join('')}</table>`:'<div class="empty">لا يوجد تالف 👍</div>'}</div>`};
 
 let icat=null;
@@ -429,12 +429,13 @@ A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p
    <label>كم ${esc(pk?(i.pack||'كرتون'):uN)}؟</label><input id="ep_q" type="number" inputmode="decimal" value="${pk?r2(p.q/i.packSize):r2(p.q)}">
    <label>السعر (المبلغ كامل)</label><input id="ep_v" type="number" inputmode="decimal" value="${r2(+p.total||0)}">
    <label>التاريخ</label><input id="ep_d" type="date" value="${dk(p.t)}" max="${dk(Date.now())}">
-   <div class="row" style="margin-top:16px"><button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button><span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`)};
+   <div class="row" style="margin-top:16px">${ISSTAFF?'':`<button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button>`}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`)};
 A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const oi=ING(p.ing);const pk=oi&&inPack(oi);let q=num('ep_q');const v=num('ep_v');if(!(q>0))return toast('اكتب الكمية');if(pk)q=q*oi.packSize;
-  const ni=ING(val('ep_i'))||oi;if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+q);
-  p.q=r2(q);p.total=v;p.ing=ni?ni.id:p.ing;const d=val('ep_d');if(d&&d!==dk(p.t))p.t=new Date(d+'T12:00').getTime();
-  [oi,ni].forEach(i=>{if(!i)return;const lp=S.purchases.filter(x=>x.ing===i.id&&x.q>0&&x.total>0).sort((a,b)=>b.t-a.t)[0];if(lp)i.cost=r2(lp.total/lp.q)});
-  closeM();save('✓ تعدّل');render()};
+  const d=val('ep_d');const ch={id,ing:val('ep_i')||p.ing,q:r2(q),total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};pEdit(ch);
+  closeM();if(ISSTAFF){CLOUD.sendAction({pedit:[ch]}).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت'));render()}else{save('✓ تعدّل');render()}};
+function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
+  p.q=ch.q;p.total=ch.total;p.ing=ni?ni.id:p.ing;p.t=ch.t;if(ch.by)p.editBy=ch.by;
+  [oi,ni].forEach(i=>{if(!i)return;const lp=S.purchases.filter(x=>x.ing===i.id&&x.q>0&&x.total>0).sort((a,b)=>b.t-a.t)[0];if(lp)i.cost=r2(lp.total/lp.q)});return 1}
 A.delpur=id=>ask('حذف هذه العملية وخصم الكمية من المخزون؟',()=>{const p=S.purchases.find(x=>x.id===id);const i=p&&ING(p.ing);if(i)i.stock=r2(i.stock-p.q);S.purchases=S.purchases.filter(x=>x.id!==id);save('تم الحذف');render()});
 A.waste=()=>openM(`<h3>🗑️ تسجيل تالف</h3><label>المادة</label><select id="w_ing">${ingOpts()}</select><label>الكمية التالفة</label><input id="w_q" type="number" step="any">${foot('savewaste')}`);
 A.savewaste=()=>{const i=ING(val('w_ing')),q=num('w_q');if(!i||q<=0)return;i.stock=r2(i.stock-q);S.waste.push({id:uid(),t:Date.now(),ing:i.id,q,cost:r2(q*i.cost)});closeM();save('تم التسجيل');render()};
@@ -928,7 +929,7 @@ window.APP={getS:()=>S,render:()=>render(),toast:m=>toast(m),
 let BIMG=null;
 document.addEventListener('change',async e=>{if(e.target.id!=='b_img')return;const f=e.target.files&&e.target.files[0];if(!f||!window.CLOUD)return;BIMG={busy:true};const st=$('#b_imgst');if(st)st.textContent='⏳ جاري رفع الصورة…';
   try{BIMG={busy:false,path:await CLOUD.uploadImg(f)};if(st)st.textContent='✓ انرفعت الصورة'}catch(err){BIMG=null;if(st)st.textContent='⚠️ ما انرفعت الصورة'}});
-const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','editpur','saveeditpur','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export','delhist','deldexp']);
+const BLOCK=new Set(['pdel','delingq','delprod','rename','saverename','rencat','saverencat','sedit','fixed','savefixed','delfixed','exp','saveexp','delexp','delsale','delpur','delwaste','waste','savewaste','saveprefs','cleardemo','import','doimport','bkrestore','staffadd','staffsave','staffrole','every','saveevery','measure','savemeasure','savesizes','dellogo','undoimp','needdel','logoutx','recadd','recdel','recmode','pimp','pimpgo','export','delhist','deldexp']);
 function blocked(a,id){if(BLOCK.has(a))return true;if((a==='ing'||a==='prod')&&id)return true;if((a==='saveing'||a==='saveprod')&&edit)return true;return false}
 function lockUI(){if(!ISSTAFF)return;document.querySelectorAll('[data-a]').forEach(b=>{if(blocked(b.dataset.a,b.dataset.id))b.remove()});
   document.querySelectorAll('.nd_cv,.tv_ev,.nd_g,.sz_n,.sz_ml,.sz_j,.sz_pk,#p_logo').forEach(i=>{i.disabled=true});
@@ -945,6 +946,7 @@ function applyDiff(d){let n=0;if(!d)return 0;
   (d.imports||[]).forEach(b=>{S.imports=S.imports||[];if(!S.imports.find(x=>x.id===b.id))S.imports.push(b)});
   (d.extra||[]).forEach(e=>{S.extraList=S.extraList||[];if(S.extraList.find(x=>x.i===e.i&&x.t===e.t))return;if(S.purchases.some(p=>p.ing===e.i&&p.t>=e.t))return;S.extraList=S.extraList.filter(x=>x.i!==e.i);S.extraList.push(e);n++});
   (d.expenses||[]).forEach(e=>{S.expenses=S.expenses||[];if(!S.expenses.find(x=>x.id===e.id)){S.expenses.push(e);n++}});
+  (d.pedit||[]).forEach(ch=>{n+=pEdit(ch)});
   (d.hist||[]).forEach(h=>{S.hist=(S.hist||[]).filter(x=>!(x.from===h.from&&x.to===h.to));S.hist.push(h);n++});
   return n}
 if(ISSTAFF)['savebuy','saveqbuy','saveneedadd','savedaily','impgo','crgo','savedexp','checkout','saveing','saveprod'].forEach(k=>{const f=A[k];if(!f)return;A[k]=(...a)=>{const sn=snap();const r=f(...a);Promise.resolve(r).then(()=>{const d=diffSnap(sn);if(d)CLOUD.sendAction(d).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت وحاول مرة ثانية'))});return r}});
@@ -972,7 +974,7 @@ function sumDiff(d){if(!d)return'';const p=[];Object.entries(d.add).forEach(([c,
   Object.entries(d.chg).forEach(([c,v])=>p.push('✏️ تعديل '+LCOLS[c]+': '+v.slice(0,3).map(x=>x.after.name||lbl(c,x.after)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
   Object.entries(d.del).forEach(([c,v])=>p.push('🗑️ حذف '+LCOLS[c]+': '+v.slice(0,3).map(x=>lbl(c,x)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
   if(d.set)p.push('⚙️ تغيير الإعدادات');if(d.list)p.push('🛒 تعديل قائمة المقاضي');return p.join(' · ').slice(0,600)}
-function sumAction(d){if(!d)return'';const p=[];const L={ings:'مادة جديدة',prods:'صنف جديد',sales:'مبيعات',purchases:'شراء',imports:'استيراد',extra:'للقائمة',expenses:'مصروف',hist:'تقرير كاشير'};
+function sumAction(d){if(!d)return'';const p=[];const L={ings:'مادة جديدة',prods:'صنف جديد',sales:'مبيعات',purchases:'شراء',imports:'استيراد',extra:'للقائمة',expenses:'مصروف',hist:'تقرير كاشير',pedit:'تعديل شراء'};
   Object.entries(d).forEach(([c,v])=>{if(!v||!v.length||c==='imports')return;p.push('➕ '+L[c]+': '+v.slice(0,3).map(o=>c==='extra'?(S.ings.find(i=>i.id===o.i)||{}).name:lbl(c,o)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':''))});return p.join(' · ').slice(0,600)}
 window.APP.diffState=diffState;window.APP.sumDiff=sumDiff;window.APP.sumAction=sumAction;
 let LOG=null,LOGMORE=true,SNAPS=null,LOGQ='';
