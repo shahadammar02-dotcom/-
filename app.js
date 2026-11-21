@@ -466,7 +466,7 @@ A.qbk=k=>{if(QB.k===k)return;const n=$('#qb_n').value,v=$('#qb_v').value;QB.k=k;
 A.saveqbuy=()=>{const i=ING(QB.id);if(!i)return;const n=num('qb_n'),t=num('qb_v');if(!(n>0))return toast('اكتب الكمية');if(t<0)return toast('اكتب السعر');
   let q=n;if(QB.k==='pack'&&i.unit!=='كرتون'){let ps=+i.packSize;if(!(ps>0)){ps=num('qb_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');i.packSize=ps;if(!i.pack)i.pack='كرتون'}q=n*ps;i.buyIn='pack'}else if(QB.k==='unit')i.buyIn='unit';
   const old=Math.max(0,i.stock);if(t>0)i.cost=r2((old*(+i.cost||0)+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;resetCover(i,q,Date.now());
-  S.purchases.push({id:uid(),t:QB.t||Date.now(),ing:i.id,q,total:t,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});if(QB.expId)S.expenses=(S.expenses||[]).filter(e=>e.id!==QB.expId);S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
+  S.purchases.push({id:uid(),t:QB.t||Date.now(),ing:i.id,q,total:t,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});if(QB.expId){const e=(S.expenses||[]).find(e=>e.id===QB.expId);if(e)e.stocked=true}S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:0,cat:stcat&&stcat!=='الكل'?stcat:'أخرى'};IU=(i.buyIn==='pack'&&+i.packSize>0)?'pack':'unit';
   const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit,pN=i.pack||'كرتون';
   openM(`<h3>${id?'تعديل مادة':'مادة جديدة'}</h3><label>الاسم</label><input id="i_n" value="${esc(i.name)}">
@@ -873,17 +873,17 @@ function allOrders(a,b,st,by){const E=Object.entries(by).sort((x,y)=>y[1].rev-x[
   return `<details style="margin-top:12px;background:var(--bg);border-radius:10px;padding:10px 12px"><summary style="cursor:pointer;font-weight:800">📋 كل الطلبات: ${oc?f2(oc)+' طلب · ':''}${f2(cups)} كوب · ${E.length} صنف</summary>
    <table style="margin-top:8px"><tr><th>الصنف</th><th>العدد</th><th>المبيعات</th></tr>${E.map(([n,o])=>`<tr><td>${esc(n)}</td><td>${f2(o.q)}</td><td>${C(o.rev)}</td></tr>`).join('')}</table></details>`}
 const recL=(a,b)=>{const o=[];const end=Math.min(b,sod(Date.now())+DAY);(S.recur||[]).forEach(r=>{for(let d=Math.max(sod(a),sod(r.from));d<end;d+=DAY){if(r.to&&d>=r.to)break;if(d<a)continue;o.push({id:r.id,t:d+1,n:r.name+' 🔁',v:+r.amount||0,k:'r'})}});return o};
-const outL=(a,b)=>[...recL(a,b),...inRange(S.expenses||[],a,b).map(e=>({id:e.id,t:e.t,n:e.cat,v:+e.amount||0,k:'e'})),...inRange(S.purchases,a,b).map(p=>{const i=ING(p.ing);return{id:p.id,t:p.t,n:(i?i.name:'شراء')+(p.q?' · '+f2(p.q)+' '+(i?i.unit:''):''),v:+p.total||0,k:'p'}})].sort((x,y)=>y.t-x.t);
+const outL=(a,b)=>[...recL(a,b),...inRange(S.expenses||[],a,b).map(e=>({id:e.id,t:e.t,n:e.cat,v:+e.amount||0,k:'e'}))].sort((x,y)=>y.t-x.t);
 const outOf=(a,b)=>outL(a,b).reduce((s,x)=>s+x.v,0),outN=(a,b)=>outL(a,b).length;
 A.dexp=()=>{const [a,b]=pRange(hp,hd);const L=outL(a,b);const day=dk(hp==='day'?hd:Date.now());
-  openM(`<h3>🧾 المصروفات والمشتريات</h3><p class="mut">${pLabel(hp,a,b)} · المجموع <b>${C(L.reduce((s,x)=>s+x.v,0))}</b></p>
+  openM(`<h3>🧾 المصروفات</h3><p class="mut">${pLabel(hp,a,b)} · المجموع <b>${C(L.reduce((s,x)=>s+x.v,0))}</b></p>
    <div class="card" style="margin:0 0 12px;background:var(--bg)"><label>وش اشتريت / وش صرفت؟</label><input id="dx_n" list="dx_l" placeholder="مثلاً: ثلج، غاز، كاسات…" autocomplete="off"><datalist id="dx_l">${[...new Set([...S.ings.map(i=>i.name),...(S.expenses||[]).map(e=>e.cat)])].map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
    <label>السعر</label><input id="dx_v" type="number" inputmode="decimal" placeholder="0">
    <label>اليوم</label><input id="dx_d" type="date" value="${day}" max="${dk(Date.now())}">
    ${ISSTAFF?'':`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="dx_r" style="width:auto"> 🔁 يتكرر كل يوم (مثل مصروف العمال)</label>`}
    <button class="btn full" style="margin-top:10px" data-a="savedexp">＋ إضافة</button></div>
    ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).length?`<div class="mut" style="margin:4px 0 8px">🔁 يتكرر كل يوم: ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).map(r=>`<b>${esc(r.name)} ${f2(r.amount)}</b>${ISSTAFF?'':` <button class="btn ghost sm" style="padding:1px 7px" data-a="stoprecur" data-id="${r.id}">إيقاف</button>`}`).join(' · ')}</div>`:''}
-   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'&&!ISSTAFF?`${ingByName(x.n)?`<button class="btn sec sm" data-a="e2p" data-id="${x.id}">📦 للمخزون</button> `:''}<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
+   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'&&!ISSTAFF?`${ingByName(x.n)&&!(S.expenses||[]).find(e=>e.id===x.id&&e.stocked)?`<button class="btn sec sm" data-a="e2p" data-id="${x.id}">📦 للمخزون</button> `:''}<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
    <div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);setTimeout(()=>{const e=$('#dx_n');if(e)e.focus()},50)};
 A.savedexp=()=>{const n=val('dx_n'),v=num('dx_v');if(!n||!(v>0))return toast('اكتب الاسم والسعر');const d=val('dx_d')||dk(Date.now());
   const rc=$('#dx_r');if(rc&&rc.checked){S.recur=S.recur||[];S.recur.push({id:uid(),name:n,amount:v,from:new Date(d+'T00:00').getTime(),to:0});save('✓ انضاف كمصروف يومي');render();A.dexp();return}const t=d===dk(Date.now())?Date.now():new Date(d+'T12:00').getTime();
