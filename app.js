@@ -143,6 +143,9 @@ if((S.v||0)<21){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/
 if((S.v||0)<22){S.ings.forEach(i=>{if(String(i.name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,' ').trim()==='تفاح احمر')i.cat='فواكه وخضار'});S.v=22}
 if((S.v||0)<23){S.ings.forEach(i=>{if(!(+i.cv>0)||!(+i.until>0)||!(+i.drate>0))return;const lp=S.purchases.filter(p=>p.ing===i.id&&p.t>=i.until-(i.cv+2)*864e5).sort((a,b)=>b.t-a.t)[0];if(!lp)return;const d=new Date(lp.t);d.setHours(0,0,0,0);i.until=d.getTime()+Math.max(0,+i.stock||0)/i.drate*864e5});S.v=23}
 if((S.v||0)<24){const wk=Date.now()-7*864e5;S.ings.forEach(i=>{if(+i.stock<0){i.stock=Math.round(S.purchases.filter(p=>p.ing===i.id&&p.t>=wk).reduce((a,p)=>a+(+p.q||0),0)*100)/100}});S.v=24}
+if((S.v||0)<25){const k=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/\s+/g,'');const has=n=>S.ings.some(i=>k(i.name)===k(n));
+  if(!has('فانيلا الري'))S.ings.push({id:uid(),name:'فانيلا الري',unit:'كجم',stock:0,min:0,cost:0,cat:'ألبان'});
+  if(!has('آيس كريم فانيلا'))S.ings.push({id:uid(),name:'آيس كريم فانيلا',unit:'كجم',stock:0,min:0,cost:0,cat:'مجمدات'});S.v=25}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
@@ -891,7 +894,7 @@ A.dexp=()=>{const [a,b]=pRange(hp,hd);const L=outL(a,b);const day=dk(hp==='day'?
    ${ISSTAFF?'':`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="dx_r" style="width:auto"> 🔁 يتكرر كل يوم (مثل مصروف العمال)</label>`}
    <button class="btn full" style="margin-top:10px" data-a="savedexp">＋ إضافة</button></div>
    ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).length?`<div class="mut" style="margin:4px 0 8px">🔁 يتكرر كل يوم: ${(S.recur||[]).filter(r=>!r.to||r.to>Date.now()).map(r=>`<b>${esc(r.name)} ${f2(r.amount)}</b>${ISSTAFF?'':` <button class="btn ghost sm" style="padding:1px 7px" data-a="stoprecur" data-id="${r.id}">إيقاف</button>`}`).join(' · ')}</div>`:''}
-   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'&&!ISSTAFF?`${(S.expenses||[]).find(e=>e.id===x.id&&e.stocked)?'<span class="tag t-ok">✓ بالمخزون</span> ':''}${!(S.expenses||[]).find(e=>e.id===x.id&&e.stocked)?`<button class="btn sec sm" data-a="e2p" data-id="${x.id}">📦 للمخزون</button> `:''}<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
+   ${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.n)}<div class="mut">${dk(x.t).slice(5)}${x.k==='p'?' · شراء':''}</div></td><td>${C(x.v)}</td><td>${x.k==='e'?`<button class="btn ghost sm" data-a="editexp" data-id="${x.id}">✏️</button> `:''}${x.k==='e'&&!ISSTAFF?`${(S.expenses||[]).find(e=>e.id===x.id&&e.stocked)?'<span class="tag t-ok">✓ بالمخزون</span> ':''}${!(S.expenses||[]).find(e=>e.id===x.id&&e.stocked)?`<button class="btn sec sm" data-a="e2p" data-id="${x.id}">📦 للمخزون</button> `:''}<button class="btn ghost sm" data-a="deldexp" data-id="${x.id}">✕</button>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">ما فيه مصروفات مسجلة</div>'}
    <div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" data-a="close">إغلاق</button></div>`);setTimeout(()=>{const e=$('#dx_n');if(e)e.focus()},50)};
 A.savedexp=()=>{const n=val('dx_n'),v=num('dx_v');if(!n||!(v>0))return toast('اكتب الاسم والسعر');const d=val('dx_d')||dk(Date.now());
   const rc=$('#dx_r');if(rc&&rc.checked){S.recur=S.recur||[];S.recur.push({id:uid(),name:n,amount:v,from:new Date(d+'T00:00').getTime(),to:0});save('✓ انضاف كمصروف يومي');render();A.dexp();return}const t=d===dk(Date.now())?Date.now():new Date(d+'T12:00').getTime();
@@ -904,6 +907,15 @@ A.e2p=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;const ex=ing
    <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="e2pgo" data-id="${e.id}">التالي ←</button></div>`);
   $('#e2_i').onchange=ev=>{$('#e2_cw').style.display=ev.target.value==='new'?'':'none'}};
 A.e2pgo=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;let v=val('e2_i');if(v==='new'){const i={id:uid(),name:e.cat,unit:'كجم',stock:0,min:0,cost:0,cat:val('e2_c')||'أخرى',trk:true};S.ings.push(i);v=i.id}A.qbuy(v,{price:e.amount,t:e.t,expId:e.id})};
+A.editexp=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;
+  openM(`<h3>✏️ تعديل مصروف</h3><label>البند</label><input id="ee_n" list="ee_l" value="${esc(e.cat)}"><datalist id="ee_l">${[...new Set([...S.ings.map(i=>i.name),...(S.expenses||[]).map(x=>x.cat)])].map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+   <label>السعر</label><input id="ee_v" type="number" inputmode="decimal" value="${r2(+e.amount||0)}">
+   <label>اليوم</label><input id="ee_d" type="date" value="${dk(e.t)}" max="${dk(Date.now())}">
+   <div class="row" style="margin-top:16px"><button class="btn ghost" data-a="dexp">← رجوع</button><span class="sp"></span><button class="btn" data-a="saveeditexp" data-id="${e.id}">حفظ</button></div>`)};
+function eEdit(ch){const e=(S.expenses||[]).find(x=>x.id===ch.id);if(!e)return 0;e.cat=ch.cat;e.amount=ch.amount;e.t=ch.t;if(ch.by)e.editBy=ch.by;return 1}
+A.saveeditexp=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;const n=val('ee_n'),v=num('ee_v');if(!n||!(v>0))return toast('اكتب البند والسعر');const d=val('ee_d');
+  const ch={id,cat:n,amount:v,t:d&&d!==dk(e.t)?(d===dk(Date.now())?Date.now():new Date(d+'T12:00').getTime()):e.t,by:window.CLOUD?CLOUD.userName:''};eEdit(ch);
+  if(ISSTAFF){CLOUD.sendAction({eedit:[ch]}).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت'))}else save('✓ تعدّل');render();A.dexp()};
 A.stoprecur=id=>ask('إيقاف هذا المصروف اليومي من بكرة؟ (الأيام اللي فاتت تبقى محسوبة)',()=>{const r=(S.recur||[]).find(x=>x.id===id);if(r)r.to=sod(Date.now())+DAY;save('✓ توقف');render()});
 A.deldexp=id=>{S.expenses=(S.expenses||[]).filter(x=>x.id!==id);save('انحذف');render();A.dexp()};
 function homeNotes(){const N=advise().filter(n=>n.lv==='b').slice(0,3);return N.length?`<div class="card">${N.map(n=>`<div class="alert a-b" style="margin:4px 0">🔴 ${n.t}</div>`).join('')}</div>`:''}
@@ -980,6 +992,7 @@ function applyDiff(d){let n=0;if(!d)return 0;
   (d.extra||[]).forEach(e=>{S.extraList=S.extraList||[];if(S.extraList.find(x=>x.i===e.i&&x.t===e.t))return;if(S.purchases.some(p=>p.ing===e.i&&p.t>=e.t))return;S.extraList=S.extraList.filter(x=>x.i!==e.i);S.extraList.push(e);n++});
   (d.expenses||[]).forEach(e=>{S.expenses=S.expenses||[];if(!S.expenses.find(x=>x.id===e.id)){S.expenses.push(e);n++}});
   (d.pedit||[]).forEach(ch=>{n+=pEdit(ch)});
+  (d.eedit||[]).forEach(ch=>{n+=eEdit(ch)});
   (d.hist||[]).forEach(h=>{S.hist=(S.hist||[]).filter(x=>!(x.from===h.from&&x.to===h.to));S.hist.push(h);n++});
   return n}
 if(ISSTAFF)['savebuy','saveqbuy','saveneedadd','savedaily','impgo','crgo','savedexp','checkout','saveing','saveprod'].forEach(k=>{const f=A[k];if(!f)return;A[k]=(...a)=>{const sn=snap();const r=f(...a);Promise.resolve(r).then(()=>{const d=diffSnap(sn);if(d)CLOUD.sendAction(d).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت وحاول مرة ثانية'))});return r}});
@@ -1007,7 +1020,7 @@ function sumDiff(d){if(!d)return'';const p=[];Object.entries(d.add).forEach(([c,
   Object.entries(d.chg).forEach(([c,v])=>p.push('✏️ تعديل '+LCOLS[c]+': '+v.slice(0,3).map(x=>x.after.name||lbl(c,x.after)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
   Object.entries(d.del).forEach(([c,v])=>p.push('🗑️ حذف '+LCOLS[c]+': '+v.slice(0,3).map(x=>lbl(c,x)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':'')));
   if(d.set)p.push('⚙️ تغيير الإعدادات');if(d.list)p.push('🛒 تعديل قائمة المقاضي');return p.join(' · ').slice(0,600)}
-function sumAction(d){if(!d)return'';const p=[];const L={ings:'مادة جديدة',prods:'صنف جديد',sales:'مبيعات',purchases:'شراء',imports:'استيراد',extra:'للقائمة',expenses:'مصروف',hist:'تقرير كاشير',pedit:'تعديل شراء'};
+function sumAction(d){if(!d)return'';const p=[];const L={ings:'مادة جديدة',prods:'صنف جديد',sales:'مبيعات',purchases:'شراء',imports:'استيراد',extra:'للقائمة',expenses:'مصروف',hist:'تقرير كاشير',pedit:'تعديل شراء',eedit:'تعديل مصروف'};
   Object.entries(d).forEach(([c,v])=>{if(!v||!v.length||c==='imports')return;p.push('➕ '+L[c]+': '+v.slice(0,3).map(o=>c==='extra'?(S.ings.find(i=>i.id===o.i)||{}).name:lbl(c,o)).join('، ')+(v.length>3?' (+'+(v.length-3)+')':''))});return p.join(' · ').slice(0,600)}
 window.APP.diffState=diffState;window.APP.sumDiff=sumDiff;window.APP.sumAction=sumAction;
 let LOG=null,LOGMORE=true,SNAPS=null,LOGQ='';
