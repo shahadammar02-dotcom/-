@@ -189,7 +189,8 @@ function salesSum(list){let rev=0,cogs=0,cups=0;list.forEach(s=>s.items.forEach(
 function fixedTotal(){return S.fixed.reduce((s,f)=>s+(+f.amount||0),0)}
 function usage(){ // متوسط الاستهلاك اليومي لكل مادة من آخر 14 يوم
   const from=sod(Date.now())-13*DAY,list=inRange(S.sales,from);const u={};
-  const first=list.length?Math.min(...list.map(s=>s.t)):Date.now();const days=Math.max(1,Math.min(14,Math.ceil((Date.now()-sod(first))/DAY)));
+  // نقسم على عدد الأيام اللي فيها مبيعات مسجلة بس، عشان الأيام اللي ما انرفع تقريرها ما تنزّل المعدل
+  const days=Math.max(1,new Set(list.map(s=>sod(s.t))).size);
   list.forEach(s=>s.items.forEach(it=>{const p=PROD(it.p);if(!p||!it.s)return;useOf(p,it.s).forEach(r=>{u[r.i]=(u[r.i]||0)+r.q*it.q})}));
   for(const k in u)u[k]/=days;S.ings.forEach(i=>{if(+i.rate>0)u[i.id]=+i.rate;else if(!(u[i.id]>0)&&+i.drate>0)u[i.id]=+i.drate});return u}
 function needs(){const u=usage(),cv0=+S.settings.cover||3;return S.ings.map(i=>{const cv=+i.cv||cv0;const d=u[i.id]||0;const left=d>0?i.stock/d:Infinity;const target=d*cv+(+i.min||0);const buy=Math.max(0,target-i.stock);
