@@ -147,6 +147,7 @@ if((S.v||0)<25){const k=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g
   if(!has('فانيلا الري'))S.ings.push({id:uid(),name:'فانيلا الري',unit:'كجم',stock:0,min:0,cost:0,cat:'ألبان'});
   if(!has('آيس كريم فانيلا'))S.ings.push({id:uid(),name:'آيس كريم فانيلا',unit:'كجم',stock:0,min:0,cost:0,cat:'مجمدات'});S.v=25}
 if((S.v||0)<26){S.prods.forEach(p=>{if(p.prices&&+p.prices.N>0)p.prices.N=5});S.v=26}
+if((S.v||0)<27){S.ings.forEach(i=>{if(String(i.name||'').replace(/\s+/g,'')==='كيوي'&&(i.cat||'أخرى')==='أخرى')i.cat='فواكه وخضار'});S.v=27}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
