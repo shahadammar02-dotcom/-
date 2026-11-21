@@ -142,6 +142,7 @@ if((S.v||0)<21){const nn=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/
     (S.hist||[]).forEach(h=>h.items.forEach(o=>{if(o.p===old.id)o.p=tp.id}));S.prods=S.prods.filter(p=>p!==old);S.cmap=S.cmap||{};S.cmap[c]=tp.id});S.v=21}
 if((S.v||0)<22){S.ings.forEach(i=>{if(String(i.name||'').replace(/[أإآ]/g,'ا').replace(/\s+/g,' ').trim()==='تفاح احمر')i.cat='فواكه وخضار'});S.v=22}
 if((S.v||0)<23){S.ings.forEach(i=>{if(!(+i.cv>0)||!(+i.until>0)||!(+i.drate>0))return;const lp=S.purchases.filter(p=>p.ing===i.id&&p.t>=i.until-(i.cv+2)*864e5).sort((a,b)=>b.t-a.t)[0];if(!lp)return;const d=new Date(lp.t);d.setHours(0,0,0,0);i.until=d.getTime()+Math.max(0,+i.stock||0)/i.drate*864e5});S.v=23}
+if((S.v||0)<24){const wk=Date.now()-7*864e5;S.ings.forEach(i=>{if(+i.stock<0){i.stock=Math.round(S.purchases.filter(p=>p.ing===i.id&&p.t>=wk).reduce((a,p)=>a+(+p.q||0),0)*100)/100}});S.v=24}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
@@ -156,7 +157,8 @@ function cost(p,sid){if(!p)return 0;return useOf(p,sid).reduce((a,r)=>{const i=I
 const hasRec=p=>p.recipe.length>0;
 const juiceMl=(p,sid)=>p?(p.lit&&cplP(p,sid||'M')?1000/cplP(p,sid||'M'):p.recipe.reduce((s,r)=>s+r.q*facP(p,sid||'M')*LQ(ING(r.i))*1000,0)):0;
 const vname=(p,sid)=>p.name+(sid&&sid!=='U'?' '+((SZ(sid)||{}).name||''):'');
-function deduct(pid,sid,q,sign){const p=PROD(pid);if(!p)return;useOf(p,sid).forEach(r=>{const i=ING(r.i);if(i&&!(+i.rate>0))i.stock=r2(i.stock-sign*r.q*q)})}
+// يخصم بس من المواد اللي مخزونها مكتوب، وبس المبيعات اللي بعد آخر مرة انكتب فيها المخزون، وما ينزل تحت الصفر
+function deduct(pid,sid,q,sign,t){const p=PROD(pid);if(!p)return;useOf(p,sid).forEach(r=>{const i=ING(r.i);if(!i||+i.rate>0||!i.trk)return;if(sign>0&&t&&i.stockAt&&t<=i.stockAt)return;i.stock=r2(Math.max(0,i.stock-sign*r.q*q))})}
 const variants=()=>{const o=[];S.prods.forEach(p=>sizesOf(p).forEach(z=>o.push({p,s:z,key:p.id+'|'+z.id,name:vname(p,z.id),price:+p.prices[z.id]})));return o};
 const priceRange=p=>{const v=sizesOf(p).map(z=>+p.prices[z.id]);if(!v.length)return'—';const a=Math.min(...v),b=Math.max(...v);return a===b?f2(a):f2(a)+' – '+f2(b)};
 const noCost=(p,sid)=>useOf(p,sid).some(r=>{const g=ING(r.i);return g&&!(+g.cost>0)});
@@ -656,7 +658,7 @@ A.crgo=()=>{if(!CR)return;S.cmap=S.cmap||{};document.querySelectorAll('.crp').fo
     if(f.daily){const bid=uid();const t=(r.from||sod(Date.now()))+20*3600e3;
       items.forEach(o=>{const p=PROD(o.p);S.sales.push({id:uid(),t,items:[{p:o.p,s:o.s,n:vname(p,o.s),q:o.q,price:r2(o.rev/o.q),cost:r2(cost(p,o.s))}],pay:'كاشير',total:o.rev,imp:bid});
         // يخصم من المخزون بس إذا اليوم بعد آخر مرة انكتب فيها المخزون
-        useOf(p,o.s).forEach(u=>{const i=ING(u.i);if(i&&!(+i.rate>0)&&(!i.stockAt||t>i.stockAt))i.stock=r2(i.stock-u.q*o.q)})});
+        deduct(o.p,o.s,o.q,1,t)});
       S.imports=S.imports||[];S.imports.push({id:bid,t:Date.now(),file:f.file,lines:r.items.length,total:r2(ft),day:r.from,pay:r.pay,orders:r.items.reduce((a,x)=>a+(S.cmap[x.p]===''||!(x.t>0)?0:x.q),0)});nd++}
     else{S.hist=(S.hist||[]).filter(h=>!(h.from===r.from&&h.to===r.to));lastHist={id:uid(),inc:true,t:Date.now(),file:f.file,from:r.from,to:r.to,days:f.days,total:r2(ft),pay:r.pay,items};S.hist.push(lastHist);np++}});
   if(lastHist)HSEL=lastHist.id;CR=null;closeM();
@@ -972,7 +974,7 @@ function diffSnap(a){const d={ings:S.ings.filter(x=>!a.i.has(x.id)),prods:S.prod
 function applyDiff(d){let n=0;if(!d)return 0;
   (d.ings||[]).forEach(i=>{if(!ING(i.id)){S.ings.push(i);n++}});
   (d.prods||[]).forEach(p=>{if(!PROD(p.id)){S.prods.push(p);S.cats=S.cats||[];if(!S.cats.includes(p.cat))S.cats.push(p.cat);n++}});
-  const sI=new Set(S.sales.map(x=>x.id));(d.sales||[]).forEach(x=>{if(sI.has(x.id))return;S.sales.push(x);x.items.forEach(it=>it.s&&deduct(it.p,it.s,it.q,1));n++});
+  const sI=new Set(S.sales.map(x=>x.id));(d.sales||[]).forEach(x=>{if(sI.has(x.id))return;S.sales.push(x);x.items.forEach(it=>it.s&&deduct(it.p,it.s,it.q,1,x.t));n++});
   const pI=new Set(S.purchases.map(x=>x.id));(d.purchases||[]).forEach(p=>{if(pI.has(p.id))return;const i=ING(p.ing);if(i){const old=Math.max(0,i.stock);if(p.total>0)i.cost=r2((old*i.cost+p.total)/(old+p.q))||i.cost;i.stock=r2(i.stock+p.q);i.stockAt=Date.now();i.trk=true;resetCover(i,p.q,p.t||Date.now())}S.purchases.push(p);S.extraList=(S.extraList||[]).filter(e=>e.i!==p.ing);n++});
   (d.imports||[]).forEach(b=>{S.imports=S.imports||[];if(!S.imports.find(x=>x.id===b.id))S.imports.push(b)});
   (d.extra||[]).forEach(e=>{S.extraList=S.extraList||[];if(S.extraList.find(x=>x.i===e.i&&x.t===e.t))return;if(S.purchases.some(p=>p.ing===e.i&&p.t>=e.t))return;S.extraList=S.extraList.filter(x=>x.i!==e.i);S.extraList.push(e);n++});
