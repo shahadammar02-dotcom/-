@@ -149,6 +149,7 @@ if((S.v||0)<25){const k=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g
 if((S.v||0)<26){S.prods.forEach(p=>{if(p.prices&&+p.prices.N>0)p.prices.N=5});S.v=26}
 if((S.v||0)<27){S.ings.forEach(i=>{if(String(i.name||'').replace(/\s+/g,'')==='كيوي'&&(i.cat||'أخرى')==='أخرى')i.cat='فواكه وخضار'});S.v=27}
 if((S.v||0)<28){S.ings.forEach(i=>{if(i.unit==='لتر'&&(/صوص|شيره|شيرة|عسل|كراميل|سيرب|سيروب/.test(i.name||'')||/صوص/.test(i.cat||'')))i.unit='كجم'});S.v=28}
+if((S.v||0)<29){S.ings.forEach(i=>{if(+i.packSize>0){i.conv=i.conv||{};i.conv[i.pack||'كرتون']=+i.packSize}});S.v=29}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
@@ -430,29 +431,27 @@ A.checkout=()=>{const items=Object.entries(cart).filter(([,q])=>q>0).map(([k,q])
   const total=items.reduce((s,i)=>s+i.price*i.q,0);S.sales.push({id:uid(),t:Date.now(),items,pay,total});cart={};save('✓ تم تسجيل '+f2(total));render()};
 A.delsale=id=>ask('حذف هذا الطلب وإرجاع المواد للمخزون؟',()=>{const s=S.sales.find(x=>x.id===id);if(!s)return;s.items.forEach(it=>it.s&&deduct(it.p,it.s,it.q,-1));S.sales=S.sales.filter(x=>x.id!==id);save('تم الحذف');render()});
 
-A.buy=id=>{const n=id?(needList().list.find(x=>x.i.id===id)||needs().find(x=>x.i.id===id)):null;openM(`<h3>🛒 تسجيل مشتريات</h3><label>المادة</label><select id="b_ing">${ingOpts(id)}</select><div class="two"><div><label>الكمية</label><input id="b_q" type="number" step="any" value="${n?n.buy:''}"></div><div><label>المبلغ الإجمالي المدفوع</label><input id="b_t" type="number" step="any" value="${n?r2(n.est):''}"></div></div><div id="b_pkw">${pkw(id||S.ings[0]?.id)}</div><div class="two"><div><label>تاريخ الشراء</label><input id="b_d" type="date" value="${dk(Date.now())}"></div><div><label>المورد (اختياري)</label><input id="b_s" list="sups"><datalist id="sups">${[...new Set(S.purchases.map(p=>p.sup).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div></div>${window.CLOUD?'<label>📷 صورة الفاتورة (اختياري)</label><input type="file" id="b_img" accept="image/*"><div id="b_imgst" class="mut"></div>':''}${foot('savebuy')}`);BIMG=null;if(n&&inPack(n.i)){const e=$('#b_pn');if(e){e.value=Math.ceil(n.buy/n.i.packSize);e.dispatchEvent(new Event('input',{bubbles:true}))}}};
+A.buy=id=>{if(id)return A.qbuy(id);openM(`<h3>🛒 تسجيل مشتريات</h3><label>وش اشتريت؟</label><input id="bq_n" list="bq_l" placeholder="اكتب اسم المادة" autocomplete="off"><datalist id="bq_l">${S.ings.map(i=>`<option value="${esc(i.name)}">`).join('')}</datalist>
+  <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="bqgo">التالي ←</button></div>`);setTimeout(()=>{const e=$('#bq_n');if(e)e.focus()},50)};
+A.bqgo=()=>{const n=val('bq_n');if(!n)return toast('اكتب اسم المادة');let i=S.ings.find(x=>norm(x.name)===norm(n))||ingByName(n);if(!i){if(ISSTAFF)return toast('اختر مادة من القائمة');i={id:uid(),name:n,unit:'كجم',stock:0,min:0,cost:0,cat:'أخرى',pack:'',packSize:0,_new:true};S.ings.push(i)}A.qbuy(i.id)};
+A.buyOld=id=>{const n=id?(needList().list.find(x=>x.i.id===id)||needs().find(x=>x.i.id===id)):null;openM(`<h3>🛒 تسجيل مشتريات</h3><label>المادة</label><select id="b_ing">${ingOpts(id)}</select><div class="two"><div><label>الكمية</label><input id="b_q" type="number" step="any" value="${n?n.buy:''}"></div><div><label>المبلغ الإجمالي المدفوع</label><input id="b_t" type="number" step="any" value="${n?r2(n.est):''}"></div></div><div id="b_pkw">${pkw(id||S.ings[0]?.id)}</div><div class="two"><div><label>تاريخ الشراء</label><input id="b_d" type="date" value="${dk(Date.now())}"></div><div><label>المورد (اختياري)</label><input id="b_s" list="sups"><datalist id="sups">${[...new Set(S.purchases.map(p=>p.sup).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div></div>${window.CLOUD?'<label>📷 صورة الفاتورة (اختياري)</label><input type="file" id="b_img" accept="image/*"><div id="b_imgst" class="mut"></div>':''}${foot('savebuy')}`);BIMG=null;if(n&&inPack(n.i)){const e=$('#b_pn');if(e){e.value=Math.ceil(n.buy/n.i.packSize);e.dispatchEvent(new Event('input',{bubbles:true}))}}};
 function pkw(id){const i=ING(id);if(!i||!i.packSize)return'';return `<div class="two"><div><label>أو عدد ال${esc(i.pack)} (${f2(i.packSize)} ${esc(i.unit)})</label><input id="b_pn" type="number" step="any"></div><div><label>سعر ال${esc(i.pack)} الواحد</label><input id="b_pp" type="number" step="any" value="${r2(i.cost*i.packSize)}"></div></div>`}
 document.addEventListener('change',e=>{if(e.target.id==='b_ing')$('#b_pkw').innerHTML=pkw(e.target.value)});
 document.addEventListener('input',e=>{if(e.target.id==='b_pn'||e.target.id==='b_pp'){const i=ING(val('b_ing'));const n=num('b_pn');if(i&&n){$('#b_q').value=r2(n*i.packSize);if(num('b_pp'))$('#b_t').value=r2(n*num('b_pp'))}}});
 A.savebuy=()=>{if(BIMG&&BIMG.busy)return toast('لحظة، الصورة تترفع…');const i=ING(val('b_ing')),q=num('b_q'),t=num('b_t');if(!i||q<=0||t<0)return toast('أدخل الكمية والمبلغ');const old=Math.max(0,i.stock);i.cost=r2((old*i.cost+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;resetCover(i,q,Date.now());const bd=val('b_d');const bt=!bd||bd===dk(Date.now())?Date.now():new Date(bd+'T12:00').getTime();S.purchases.push({id:uid(),t:bt,ing:i.id,q,total:t,sup:val('b_s'),staff:window.CLOUD?CLOUD.userName:'',imgPath:BIMG&&BIMG.path||''});S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 let EP={};
-A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p.ing);EP={id,k:i&&(i.unit==='كرتون'||inPack(i))?'pack':'unit'};
-  EP.html=(q,v,d,ing)=>{const ii=ING(ing)||i;const uN=!ii||!ii.unit||ii.unit==='كجم'?'كيلو':ii.unit;const pN=ii&&ii.pack||'كرتون';const ps=ii&&+ii.packSize>0;
-   return `<h3>✏️ تعديل شراء: ${esc(i?i.name:'—')}</h3>
-   <label>المادة</label><select id="ep_i">${S.ings.map(x=>`<option value="${x.id}" ${x.id===ing?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
-   <div class="row" style="margin-top:12px">${(ii&&ii.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',pN]]).map(([k,l])=>`<button type="button" class="btn sp ${k===EP.k?'':'ghost'}" data-a="epk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
-   <label>كم ${esc(EP.k==='pack'?pN:uN)}؟</label><input id="ep_q" type="number" inputmode="decimal" value="${q}">
-   ${EP.k==='pack'&&!ps&&ii&&ii.unit!=='كرتون'?`<label>ال${esc(pN)} فيه كم ${esc(uN)}؟</label><input id="ep_ps" type="number" inputmode="decimal" placeholder="مثلاً 10">`:''}
-   <label>السعر (المبلغ كامل)</label><input id="ep_v" type="number" inputmode="decimal" value="${v}">
-   <label>التاريخ</label><input id="ep_d" type="date" value="${d}" max="${dk(Date.now())}">
-   <div class="row" style="margin-top:16px">${ISSTAFF?'':`<button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button>`}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`};
-  const q0=EP.k==='pack'&&i&&+i.packSize>0?r2(p.q/i.packSize):r2(p.q);openM(EP.html(q0,r2(+p.total||0),dk(p.t),p.ing))};
-A.epk=k=>{if(EP.k===k)return;const ing=val('ep_i'),ii=ING(ing);let q=num('ep_q');const ps=ii&&+ii.packSize>0?+ii.packSize:0;if(ps&&ii.unit!=='كرتون'&&q>0)q=k==='pack'?r2(q/ps):r2(q*ps);EP.k=k;openM(EP.html(q||'',$('#ep_v').value,$('#ep_d').value,ing))};
-A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const ni=ING(val('ep_i'))||ING(p.ing);let q=num('ep_q');const v=num('ep_v');if(!(q>0))return toast('اكتب الكمية');
-  if(EP.k==='pack'&&ni&&ni.unit!=='كرتون'){let ps=+ni.packSize;if(!(ps>0)){ps=num('ep_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');ni.packSize=ps;if(!ni.pack)ni.pack='كرتون'}q=q*ps}
-  const d=val('ep_d');const ch={id,ing:ni?ni.id:p.ing,q:r2(q),total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};if(EP.k==='pack'&&ni&&+ni.packSize>0)ch.ps=+ni.packSize;pEdit(ch);
+A.editpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const i=ING(p.ing);const u=i?(i.su||dispU(i)):'كيلو';const f=ufac(i,u)||1;EP={id};
+  openM(`<h3>✏️ تعديل شراء: ${esc(i?i.name:'—')}</h3>
+   <label>المادة</label><select id="ep_i">${S.ings.map(x=>`<option value="${x.id}" ${x.id===p.ing?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+   <div id="ep_up">${unitPick('ep',i,u,r2(p.q/f))}</div>
+   <label>السعر (المبلغ كامل)</label><input id="ep_v" type="number" inputmode="decimal" value="${r2(+p.total||0)}">
+   <label>التاريخ</label><input id="ep_d" type="date" value="${dk(p.t)}" max="${dk(Date.now())}">
+   <div class="row" style="margin-top:16px">${ISSTAFF?'':`<button class="btn red" data-a="delpur" data-id="${p.id}">حذف</button>`}<span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="saveeditpur" data-id="${p.id}">حفظ</button></div>`);
+  $('#ep_i').onchange=()=>{const ni=ING(val('ep_i'));const q=val('ep_q');$('#ep_up').innerHTML=unitPick('ep',ni,ni?(ni.su||dispU(ni)):'كيلو',q)}};
+A.saveeditpur=id=>{const p=S.purchases.find(x=>x.id===id);if(!p)return;const ni=ING(val('ep_i'))||ING(p.ing);const v=num('ep_v');const r=readQty('ep',ni);if(r.err)return toast(r.err);
+  const d=val('ep_d');const ch={id,ing:ni?ni.id:p.ing,q:r.q,total:v,t:d&&d!==dk(p.t)?new Date(d+'T12:00').getTime():p.t,by:window.CLOUD?CLOUD.userName:''};if(ni&&ni.conv)ch.conv={...ni.conv};if(ni)ch.su=ni.su;pEdit(ch);
   closeM();if(ISSTAFF){CLOUD.sendAction({pedit:[ch]}).then(()=>toast('✓ انرسلت للمالك')).catch(()=>toast('⚠️ ما انرسلت، تأكد من النت'));render()}else{save('✓ تعدّل');render()}};
-function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(ch.ps&&ni&&!(+ni.packSize>0)){ni.packSize=ch.ps;if(!ni.pack)ni.pack='كرتون'}if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
+function pEdit(ch){const p=S.purchases.find(x=>x.id===ch.id);if(!p)return 0;const oi=ING(p.ing),ni=ING(ch.ing)||oi;if(ni&&ch.conv){ni.conv=Object.assign(ni.conv||{},ch.conv)}if(ni&&ch.su)setSU(ni,ch.su);if(oi)oi.stock=r2(oi.stock-p.q);if(ni)ni.stock=r2(ni.stock+ch.q);
   const dq=ch.q-p.q;if(ni&&ni===oi&&+ni.drate>0&&+ni.until>0)ni.until=Math.max(sod(p.t),ni.until+dq/ni.drate*DAY);p.q=ch.q;p.total=ch.total;p.ing=ni?ni.id:p.ing;p.t=ch.t;if(ch.by)p.editBy=ch.by;
   [oi,ni].forEach(i=>{if(!i)return;const lp=S.purchases.filter(x=>x.ing===i.id&&x.q>0&&x.total>0).sort((a,b)=>b.t-a.t)[0];if(lp)i.cost=r2(lp.total/lp.q)});return 1}
 A.delpur=id=>ask('حذف هذه العملية وخصم الكمية من المخزون؟',()=>{const p=S.purchases.find(x=>x.id===id);const i=p&&ING(p.ing);if(i)i.stock=r2(i.stock-p.q);S.purchases=S.purchases.filter(x=>x.id!==id);save('تم الحذف');render()});
@@ -463,44 +462,60 @@ A.delwaste=id=>{const w=S.waste.find(x=>x.id===id);const i=w&&ING(w.ing);if(i)i.
 let IU='unit';
 function stLevel(i,U){if(!(i.stock>0))return't-b';const now=Date.now();if(+i.until>0){if(now>=i.until)return't-b';if(i.until-now<=DAY)return't-w'}const d=(U||usage())[i.id]||0;if(d>0&&i.stock/d<=1)return't-w';if(i.min>0&&i.stock<=i.min)return't-w';return't-ok'}
 let QB={};
+/* ---------- الوحدات: كرتون، حبة، كيلو، علبة ---------- */
+const U4=['كرتون','حبة','كيلو','علبة'];
+const baseU=i=>!i||!i.unit||i.unit==='كجم'?'كيلو':i.unit;
+const unitsOf=i=>[...new Set([...(i?[baseU(i)]:[]),...U4,...(i&&i.pack?[i.pack]:[])])];
+function ufac(i,u){if(!i)return 0;if(u===baseU(i))return 1;if(i.conv&&+i.conv[u]>0)return +i.conv[u];if(u===(i.pack||'كرتون')&&+i.packSize>0)return +i.packSize;return 0}
+const dispU=i=>inPack(i)?(i.pack||'كرتون'):baseU(i);
+function setSU(i,u){i.su=u;if(u===baseU(i)){i.buyIn='unit'}else{const f=ufac(i,u);if(f>0){i.pack=u;i.packSize=f;i.buyIn='pack'}}}
+const qLbl=u=>u==='كيلو'?'كم كيلو؟ (الوزن)':u==='لتر'?'كم لتر؟':'كم '+u+'؟ (العدد)';
+// p: بادئة الحقول، i: المادة (أو null لمادة جديدة)، u: المختار، v: الكمية
+function unitPick(p,i,u,v,qlabel){const L=unitsOf(i);u=L.includes(u)?u:L[0];const need=i&&!i._new&&!ufac(i,u);
+  return `<label>الوحدة</label><div class="row" style="flex-wrap:wrap;gap:6px" id="${p}_ub" data-i="${i?i.id:''}">${L.map(x=>`<button type="button" class="btn sm ${x===u?'':'ghost'}" style="flex:1 0 auto" data-a="upk" data-id="${p}|${esc(x)}">${esc(x)}</button>`).join('')}</div><input type="hidden" id="${p}_u" value="${esc(u)}">
+   <label id="${p}_ql">${qlabel?qlabel(u):qLbl(u)}</label><input id="${p}_q" type="number" inputmode="decimal" step="any" value="${v===undefined||v===''?'':v}" placeholder="0">
+   <div id="${p}_cw" style="${need?'':'display:none'}"><label id="${p}_cl">${i?`ال${esc(u)} فيه كم ${esc(baseU(i))}؟`:''}</label><input id="${p}_cf" type="number" inputmode="decimal" step="any" placeholder="مرة وحدة بس، النظام يتذكرها"></div>`}
+const UPQL={};
+A.upk=k=>{const [p,u]=k.split('|');const box=$('#'+p+'_ub');if(!box)return;const i=ING(box.dataset.i);const old=val(p+'_u');if(old===u)return;
+  box.querySelectorAll('button').forEach(b=>b.classList.toggle('ghost',b.dataset.id!==k));$('#'+p+'_u').value=u;
+  const ql=$('#'+p+'_ql');if(ql)ql.textContent=UPQL[p]?UPQL[p](u):qLbl(u);
+  const fo=ufac(i,old),fn=ufac(i,u),q=$('#'+p+'_q');if(i&&fo&&fn&&q&&q.value!=='')q.value=r2(num(p+'_q')*fo/fn);
+  const cw=$('#'+p+'_cw');if(cw){cw.style.display=i&&!i._new&&!fn?'':'none';const cl=$('#'+p+'_cl');if(cl&&i)cl.textContent='ال'+u+' فيه كم '+baseU(i)+'؟'}};
+// يرجع الكمية بالوحدة الأساسية، ويحفظ التحويل لو جديد
+function readQty(p,i){const u=val(p+'_u'),n=num(p+'_q');if(!(n>0))return{err:'اكتب '+(u==='كيلو'?'الوزن':'العدد')};let f=ufac(i,u);if(!f&&i._new){i.unit=u==='كيلو'?'كجم':u;f=1}delete i._new;
+  if(!f){f=num(p+'_cf');if(!(f>0))return{err:'اكتب ال'+u+' فيه كم '+baseU(i)};i.conv=i.conv||{};i.conv[u]=f}setSU(i,u);return{q:r2(n*f),n,u}}
 // بعد الشراء: كم يوم يكفي = (الباقي المتوقع + اللي انشرى) ÷ الاستهلاك اليومي
 function resetCover(i,q,t){if(!(+i.cv>0)){i.until=0;return}const d0=sod(t);let r=+i.drate||0;
   if(!(r>0)){i.until=d0+i.cv*DAY;i.cvQ=i.stock;return}
   const left=+i.until>d0?(i.until-d0)/DAY*r:0;i.until=d0+Math.max(0,left+q)/r*DAY;i.cvQ=i.stock}
-A.qbuy=(id,o)=>{const i=ING(id);if(!i)return;const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit;const ps=+i.packSize>0;QB={id,k:i.unit==='كرتون'||inPack(i)?'pack':'unit',...(o||{})};
-  const html=()=>`<h3>🛒 اشتريت: ${esc(i.name)}</h3>${QB.expId?`<p class="mut">📦 اكتب الكمية عشان تنضاف للمخزون (يوم ${dk(QB.t)}). لو ضغطت إلغاء تبقى مصروف بس.</p>`:''}<div class="row" id="qb_t">${(i.unit==='كرتون'?[['pack','كرتون']]:[['unit',uN],['pack',i.pack||'كرتون']]).map(([k,l])=>`<button type="button" class="btn sp ${k===QB.k?'':'ghost'}" data-a="qbk" data-id="${k}">${esc(l)}</button>`).join('')}</div>
-   <label>كم ${esc(QB.k==='pack'?(i.pack||'كرتون'):uN)}؟</label><input id="qb_n" type="number" inputmode="decimal" placeholder="0">
-   ${QB.k==='pack'&&!ps&&i.unit!=='كرتون'?`<label>ال${esc(i.pack||'كرتون')} فيه كم ${esc(uN)}؟</label><input id="qb_ps" type="number" inputmode="decimal" placeholder="مثلاً 10">`:''}
-   <label>السعر (المبلغ كامل)</label><input id="qb_v" type="number" inputmode="decimal" placeholder="0">${foot('saveqbuy')}`;
-  QB.html=html;openM(html());if(QB.price)$('#qb_v').value=QB.price;setTimeout(()=>{const e=$('#qb_n');if(e)e.focus()},50)};
-A.qbk=k=>{if(QB.k===k)return;const n=$('#qb_n').value,v=$('#qb_v').value;QB.k=k;openM(QB.html());$('#qb_n').value=n;$('#qb_v').value=v};
-A.saveqbuy=()=>{const i=ING(QB.id);if(!i)return;const n=num('qb_n'),t=num('qb_v');if(!(n>0))return toast('اكتب الكمية');if(t<0)return toast('اكتب السعر');
-  let q=n;if(QB.k==='pack'&&i.unit!=='كرتون'){let ps=+i.packSize;if(!(ps>0)){ps=num('qb_ps');if(!(ps>0))return toast('اكتب الكرتون فيه كم');i.packSize=ps;if(!i.pack)i.pack='كرتون'}q=n*ps;i.buyIn='pack'}else if(QB.k==='unit')i.buyIn='unit';
+A.qbuy=(id,o)=>{const i=ING(id);if(!i)return;QB={id,...(o||{})};
+  openM(`<h3>🛒 اشتريت: ${esc(i.name)}</h3>${QB.expId?`<p class="mut">📦 اكتب الكمية عشان تنضاف للمخزون (يوم ${dk(QB.t)}). لو ضغطت إلغاء تبقى مصروف بس.</p>`:''}
+   ${unitPick('qb',i,i.su||dispU(i))}
+   <label>السعر (المبلغ كامل)</label><input id="qb_v" type="number" inputmode="decimal" placeholder="0" value="${QB.price||''}">${foot('saveqbuy')}`);setTimeout(()=>{const e=$('#qb_q');if(e)e.focus()},50)};
+A.saveqbuy=()=>{const i=ING(QB.id);if(!i)return;const t=num('qb_v');if(t<0)return toast('اكتب السعر');const r=readQty('qb',i);if(r.err)return toast(r.err);const q=r.q;
   const old=Math.max(0,i.stock);if(t>0)i.cost=r2((old*(+i.cost||0)+t)/(old+q))||i.cost;i.stock=r2(i.stock+q);i.stockAt=Date.now();i.trk=true;resetCover(i,q,Date.now());
   S.purchases.push({id:uid(),t:QB.t||Date.now(),ing:i.id,q,total:t,fromExp:!!QB.expId,sup:'',staff:window.CLOUD?CLOUD.userName:'',imgPath:''});if(QB.expId){const e=(S.expenses||[]).find(e=>e.id===QB.expId);if(e)e.stocked=true}S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);closeM();save('✓ أضيف للمخزون');render()};
 A.ing=id=>{edit=id;const i=id?ING(id):{name:'',unit:'كجم',stock:0,min:0,cost:0,cat:stcat&&stcat!=='الكل'?stcat:'أخرى'};IU=(i.buyIn==='pack'&&+i.packSize>0)?'pack':'unit';
   const uN=!i.unit||i.unit==='كجم'?'كيلو':i.unit,pN=i.pack||'كرتون';
   openM(`<h3>${id?'تعديل مادة':'مادة جديدة'}</h3><label>الاسم</label><input id="i_n" value="${esc(i.name)}">
- <label>كيلو ولا كرتون؟</label><div class="row" id="i_ut">${[['unit',uN],['pack',pN]].map(([k,l])=>`<button type="button" class="btn sp ${k===IU?'':'ghost'}" data-a="iunit" data-id="${k}">${esc(l)}</button>`).join('')}</div>
- 
- <label id="i_sl">كم ${esc(IU==='pack'?pN:uN)} عندك؟</label><input id="i_s" type="number" inputmode="decimal" step="any" value="${IU==='pack'?r2(i.stock/i.packSize):r2(i.stock)}">
+ ${(()=>{const ex=id?i:null;const u=ex?(ex.su||dispU(ex)):'كيلو';const f=ufac(ex,u)||1;UPQL.i=x=>'كم '+x+' عندك؟';return unitPick('i',ex,u,ex?r2(i.stock/f):'',UPQL.i)})()}
  <label>يكفي كم يوم؟</label><input id="i_cv" type="number" inputmode="decimal" step="any" value="${i.cv||''}" placeholder="مثلاً 4">
  <details style="margin-top:14px"><summary class="mut" style="cursor:pointer">⚙️ خيارات أكثر</summary>
- <div class="two"><div><label>الوحدة</label><input id="i_u" value="${esc(i.unit)}" list="units"><datalist id="units"><option value="كجم"><option value="لتر"><option value="حبة"><option value="حزمة"><option value="كيس"><option value="علبة"></datalist></div><div><label>سعر الوحدة</label><input id="i_c" type="number" step="any" value="${i.cost}"></div></div>
+ <label>سعر ال${esc(baseU(i))}</label><input id="i_c" type="number" step="any" value="${i.cost}">
  <div class="two"><div><label>الحد الأدنى</label><input id="i_m" type="number" step="any" value="${i.min}"></div><div><label>النوع</label><select id="i_cat">${ICATS.map(c=>`<option ${c===(i.cat||'أخرى')?'selected':''}>${c}</option>`).join('')}</select></div></div>
  <label>الاستهلاك بالأسبوع</label><input id="i_r" type="number" step="any" value="${i.rate?r2(i.rate*7):''}">
- <div class="two"><div><label>اسم العبوة</label><input id="i_pk" value="${esc(i.pack||'')}" placeholder="كرتون"></div><div><label>كم لتر عصير من ${esc(i.unit==='حبة'?'الحبة':'الكيلو')}</label><input id="i_y" type="number" step="any" value="${i.yield||''}"></div></div>
- <label>كم ${esc(uN)} في ال${esc(pN)}؟</label><input id="i_ps2" type="number" inputmode="decimal" step="any" value="${i.packSize||''}">
+ <label>كم لتر عصير من ${esc(i.unit==='حبة'?'الحبة':'الكيلو')}</label><input id="i_y" type="number" step="any" value="${i.yield||''}">
+ ${id?unitsOf(i).filter(u=>u!==baseU(i)).map(u=>`<label>ال${esc(u)} فيه كم ${esc(baseU(i))}؟</label><input class="i_cvx" data-u="${esc(u)}" type="number" inputmode="decimal" step="any" value="${ufac(i,u)||''}">`).join(''):''}
  <label>كم حبة تقريباً في ال${esc(uN)}</label><input id="i_pc" type="number" step="any" value="${i.pcs||''}"></details>${foot('saveing',id?'delingq':'')}`)};
 A.iunit=k=>{if(k===IU)return;const ps=num('i_ps2')||(edit&&+(ING(edit)||{}).packSize)||0;const v=num('i_s');IU=k;document.querySelectorAll('#i_ut button').forEach(b=>b.classList.toggle('ghost',b.dataset.id!==k));
   const bs=[...document.querySelectorAll('#i_ut button')];const l=$('#i_sl');if(l)l.textContent='كم '+(bs.find(b=>b.dataset.id===k)||{}).textContent+' عندك؟';
   if(ps&&v)$('#i_s').value=r2(k==='pack'?v/ps:v*ps)};
-A.saveing=()=>{if(!val('i_n'))return toast('اكتب الاسم');let i=edit?ING(edit):null;const isNew=!i;const ps=num('i_ps2')||(i&&+i.packSize)||0;const sv=num('i_s');
-  if(IU==='pack'&&!ps&&!isNew&&S.prods.some(p=>p.recipe.some(r=>r.i===i.id)))return toast('هذي المادة في وصفات: حدد وزن الكرتون من «خيارات أكثر»');if(!i){i={id:uid()};S.ings.push(i)}
-  let unit=val('i_u')||'كجم',pack=val('i_pk'),packSize=ps,stock=sv,buyIn='unit';
-  if(IU==='pack'){if(ps){stock=sv*ps;buyIn='pack';if(!pack)pack='كرتون'}else{unit=pack||'كرتون';packSize=0}}
-  const days=num('i_cv'),inRec=S.prods.some(p=>p.recipe.some(r=>r.i===i.id))||S.sizes.some(z=>(z.pk||[]).includes(i.id));let rate=num('i_r')/7,drate=0;if(days>0&&stock>0)drate=r2(stock/days*1000)/1000;const until=days>0?sod(Date.now())+days*DAY:0
-  Object.assign(i,{name:val('i_n'),unit,cost:num('i_c'),stock:r2(stock),min:num('i_m'),pack,packSize,buyIn,yield:num('i_y'),pcs:num('i_pc'),cat:val('i_cat'),rate,drate,cv:days,until,cvQ:r2(stock),trk:true,stockAt:Date.now()});closeM();save('تم الحفظ');render()};
+A.saveing=()=>{if(!val('i_n'))return toast('اكتب الاسم');let i=edit?ING(edit):null;const isNew=!i;const u=val('i_u'),sv=num('i_q');
+  if(isNew){i={id:uid(),name:val('i_n'),unit:u==='كيلو'?'كجم':u,stock:0,min:0,cost:0,pack:'',packSize:0};S.ings.push(i)}
+  document.querySelectorAll('.i_cvx').forEach(x=>{const v=+AD(x.value)||0;if(v>0){i.conv=i.conv||{};i.conv[x.dataset.u]=v;if(x.dataset.u===(i.pack||'كرتون'))i.packSize=v}});
+  let f=ufac(i,u);if(!f&&sv>0){f=num('i_cf');if(!(f>0))return toast('اكتب ال'+u+' فيه كم '+baseU(i));i.conv=i.conv||{};i.conv[u]=f}if(f)setSU(i,u);const stock=sv*(f||1);
+  const days=num('i_cv');let rate=num('i_r')/7,drate=0;if(days>0&&stock>0)drate=r2(stock/days*1000)/1000;const until=days>0?sod(Date.now())+days*DAY:0;
+  Object.assign(i,{name:val('i_n'),cost:num('i_c'),stock:r2(stock),min:num('i_m'),yield:num('i_y'),pcs:num('i_pc'),cat:val('i_cat'),rate,drate,cv:days,until,cvQ:r2(stock),trk:true,stockAt:Date.now()});closeM();save('تم الحفظ');render()};
 A.delingq=()=>{const used=S.prods.some(p=>p.recipe.some(r=>r.i===edit))||S.sizes.some(z=>(z.pk||[]).includes(edit));if(used)return toast('المادة مستخدمة في وصفة صنف');S.ings=S.ings.filter(x=>x.id!==edit);closeM();save('تم الحذف');render()};
 
 let rec=[],recMode='cup';const curCpl=()=>{const e=document.querySelector('.pr_cpl[data-s="M"]');const v=e&&pF(e.value);return v||1000/jmlM()};const rmul=()=>recMode==='L'?curCpl():1;
@@ -821,14 +836,13 @@ A.dellogo=()=>{delete S.settings.logo;save('تم حذف الشعار');render()}
 document.addEventListener('change',e=>{if(e.target.id!=='p_logo')return;const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const M=200,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);S.settings.logo=c.toDataURL('image/jpeg',.85);save('✓ تم إضافة الشعار');render()};im.onerror=()=>toast('ما قدرت أقرأ الصورة');im.src=rd.result};rd.readAsDataURL(f)});
 let NAU='كيلو';
 A.needadd=()=>{openM(`<h3>إضافة للقائمة</h3><label>اسم الشي</label><input id="na_n" list="na_l" placeholder="اكتب الاسم" autocomplete="off"><datalist id="na_l">${S.ings.map(i=>`<option value="${esc(i.name)}">`).join('')}</datalist>
-  <label>بالكيلو ولا بالكرتون؟</label><div class="row" id="na_u">${['كيلو','كرتون'].map(u=>`<button type="button" class="btn sp ${u===NAU?'':'ghost'}" data-a="naunit" data-id="${u}">${u}</button>`).join('')}</div>
-  <label id="na_ql">${NAU==='كيلو'?'كم كيلو؟':'كم كرتون؟'}</label><input id="na_q" type="number" inputmode="decimal" step="any" min="0" value="1">
-  <label id="na_pl">${NAU==='كيلو'?'سعر الكيلو':'سعر الكرتون'} (اختياري)</label><input id="na_p" type="number" inputmode="decimal" step="any">${foot('saveneedadd')}`)};
-A.naunit=u=>{NAU=u;document.querySelectorAll('#na_u button').forEach(b=>b.classList.toggle('ghost',b.dataset.id!==u));const l=$('#na_ql');if(l)l.textContent=u==='كيلو'?'كم كيلو؟':'كم كرتون؟';const pl=$('#na_pl');if(pl)pl.textContent=(u==='كيلو'?'سعر الكيلو':'سعر الكرتون')+' (اختياري)'};
-A.saveneedadd=()=>{const n=val('na_n');if(!n)return toast('اكتب الاسم');const p=num('na_p'),cnt=num('na_q');if(cnt<=0)return toast(NAU==='كيلو'?'اكتب كم كيلو':'اكتب كم كرتون');let i=S.ings.find(x=>norm(x.name)===norm(n));
-  if(!i){i={id:uid(),name:n,unit:NAU==='كيلو'?'كجم':'كرتون',cost:p,stock:0,min:0,pack:'',packSize:0,yield:0,cat:'أخرى'};S.ings.push(i)}
-  let q=cnt;if(NAU==='كرتون'&&i.unit!=='كرتون'){if(i.packSize){q=cnt*i.packSize;i.buyIn='pack'}}else if(NAU==='كيلو'&&i.buyIn==='pack'){i.buyIn='unit'}
-  S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);S.extraList.push({i:i.id,q,t:Date.now(),price:p?r2(p*cnt):0});closeM();save('✓ انضاف للقائمة');render()};
+  <div id="na_up">${unitPick('na',null,'كيلو',1)}</div>
+  <label>السعر (اختياري، المبلغ كامل)</label><input id="na_p" type="number" inputmode="decimal" step="any">${foot('saveneedadd')}`);
+  $('#na_n').onchange=()=>{const i=S.ings.find(x=>norm(x.name)===norm(val('na_n')));const q=val('na_q');$('#na_up').innerHTML=unitPick('na',i||null,i?(i.su||dispU(i)):val('na_u'),q)}};
+A.saveneedadd=()=>{const n=val('na_n');if(!n)return toast('اكتب الاسم');const p=num('na_p');let i=S.ings.find(x=>norm(x.name)===norm(n));
+  if(!i){const u=val('na_u');i={id:uid(),name:n,unit:u==='كيلو'?'كجم':u,cost:0,stock:0,min:0,pack:'',packSize:0,yield:0,cat:'أخرى'};S.ings.push(i)}
+  const r=readQty('na',i);if(r.err)return toast(r.err);if(p>0&&r.q>0&&!(+i.cost>0))i.cost=r2(p/r.q);
+  S.extraList=(S.extraList||[]).filter(e=>e.i!==i.id);S.extraList.push({i:i.id,q:r.q,t:Date.now(),price:p>0?p:0});closeM();save('✓ انضاف للقائمة');render()};
 A.needdel=id=>{S.extraList=(S.extraList||[]).filter(e=>e.i!==id);save();render()};
 A.refresh=async()=>{toast('🔄 جاري التحديث…');try{clearTimeout(pubT);if(dirty&&window.CLOUD&&!ISSTAFF){dirty=false;await CLOUD.save(S)}for(let k=0;k<40&&window.CLOUD&&CLOUD.saving;k++)await new Promise(r=>setTimeout(r,150))}catch(e){}try{saveUI()}catch(e){}location.reload()};
 A.pcat=c=>{pcat=c;render()};
@@ -912,7 +926,7 @@ A.e2p=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;const ex=ing
    <div id="e2_cw" style="${g?'display:none':''}"><label>النوع</label><select id="e2_c">${ICATS.map(c=>`<option ${c==='أخرى'?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
    <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" data-a="close">إلغاء</button><button class="btn" data-a="e2pgo" data-id="${e.id}">التالي ←</button></div>`);
   $('#e2_i').onchange=ev=>{$('#e2_cw').style.display=ev.target.value==='new'?'':'none'}};
-A.e2pgo=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;let v=val('e2_i');if(v==='new'){const i={id:uid(),name:e.cat,unit:'كجم',stock:0,min:0,cost:0,cat:val('e2_c')||'أخرى',trk:true};S.ings.push(i);v=i.id}A.qbuy(v,{price:e.amount,t:e.t,expId:e.id})};
+A.e2pgo=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;let v=val('e2_i');if(v==='new'){const i={id:uid(),name:e.cat,unit:'كجم',stock:0,min:0,cost:0,cat:val('e2_c')||'أخرى',trk:true,_new:true};S.ings.push(i);v=i.id}A.qbuy(v,{price:e.amount,t:e.t,expId:e.id})};
 A.editexp=id=>{const e=(S.expenses||[]).find(x=>x.id===id);if(!e)return;
   openM(`<h3>✏️ تعديل مصروف</h3><label>البند</label><input id="ee_n" list="ee_l" value="${esc(e.cat)}"><datalist id="ee_l">${[...new Set([...S.ings.map(i=>i.name),...(S.expenses||[]).map(x=>x.cat)])].map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
    <label>السعر</label><input id="ee_v" type="number" inputmode="decimal" value="${r2(+e.amount||0)}">
