@@ -150,6 +150,13 @@ if((S.v||0)<26){S.prods.forEach(p=>{if(p.prices&&+p.prices.N>0)p.prices.N=5});S.
 if((S.v||0)<27){S.ings.forEach(i=>{if(String(i.name||'').replace(/\s+/g,'')==='كيوي'&&(i.cat||'أخرى')==='أخرى')i.cat='فواكه وخضار'});S.v=27}
 if((S.v||0)<28){S.ings.forEach(i=>{if(i.unit==='لتر'&&(/صوص|شيره|شيرة|عسل|كراميل|سيرب|سيروب/.test(i.name||'')||/صوص/.test(i.cat||'')))i.unit='كجم'});S.v=28}
 if((S.v||0)<29){S.ings.forEach(i=>{if(+i.packSize>0){i.conv=i.conv||{};i.conv[i.pack||'كرتون']=+i.packSize}});S.v=29}
+if((S.v||0)<30){const k=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,'');
+  const tp=S.prods.find(p=>['نكههالطبيبين','نكههالطيبين'].includes(k(p.name)));const olds=S.prods.filter(p=>['المبراطور','الامبراطور'].includes(k(p.name)));
+  const szn=sid=>(((S.sizes||[]).find(z=>z.id===sid)||{}).name||'');
+  olds.forEach(old=>{if(!tp){old.name='نكهة الطبيبين';return}if(old===tp)return;Object.keys(old.prices||{}).forEach(x=>{if(!(+tp.prices[x]>0))tp.prices[x]=old.prices[x]});
+    (S.sales||[]).forEach(sl=>sl.items.forEach(it=>{if(it.p===old.id)it.p=tp.id}));(S.hist||[]).forEach(h=>h.items.forEach(o=>{if(o.p===old.id)o.p=tp.id}));S.prods=S.prods.filter(p=>p!==old)});
+  const T=tp||S.prods.find(p=>p.name==='نكهة الطبيبين');S.cmap=S.cmap||{};if(T){S.cmap['المبراطور']=T.id;S.cmap['الامبراطور']=T.id;S.cmap['الإمبراطور']=T.id;
+    (S.sales||[]).forEach(sl=>sl.items.forEach(it=>{if(it.p===T.id&&/مبراطور/.test(it.n||''))it.n=T.name+(it.s&&it.s!=='U'?' '+szn(it.s):'')}))}S.v=30}
 function settle(){const now=Date.now();S.ings.forEach(i=>{if(+i.rate>0){if(!i.stockAt){i.stockAt=now;return}const el=(now-i.stockAt)/DAY;if(el>0.01){i.stock=Math.max(0,r2(i.stock-i.rate*el));i.stockAt=now}}})}
 
 const SZ=id=>(S.sizes||[]).find(x=>x.id===id);
